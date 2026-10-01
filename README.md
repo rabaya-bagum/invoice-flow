@@ -64,6 +64,6 @@ key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and any
 
 ## Status
 
-Phases 1 (architecture, schema, money library, CI), 2 (authentication) and 3 (business profile,
-customers, products, tab navigation) are complete. Next: Phase 4, invoices (CRUD, server-side
-calculation, numbering, status machine). The dashboard shows placeholder numbers until then.
+Phases 1 (architecture, schema, money library, CI), 2 (authentication), 3 (business profile,
+customers, products, tab navigation) and 4 (invoices) are complete. Next: Phase 5, invoice preview,
+PDF, sending, and the public pay page. The dashboard shows placeholder numbers until Phase 8.

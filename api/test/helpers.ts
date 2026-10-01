@@ -3,7 +3,7 @@ import { SignJWT, exportJWK, generateKeyPair, createLocalJWKSet } from 'jose';
 import { Pool } from 'pg';
 import { createApp } from '../src/app';
 import { loadConfig } from '../src/config';
-import { createPool } from '../src/db';
+import { createDatabase, createPool } from '../src/db';
 import {
   createAccountRepository,
   type Account,
@@ -12,6 +12,8 @@ import {
 } from '../src/repositories/account-repository';
 import { createBusinessRepository } from '../src/repositories/business-repository';
 import { createCustomerRepository } from '../src/repositories/customer-repository';
+import { createTaxRateRepository } from '../src/repositories/tax-rate-repository';
+import { createInvoiceService } from '../src/services/invoice-service';
 import { createProductRepository } from '../src/repositories/product-repository';
 import { createAccountService } from '../src/services/account-service';
 import {
@@ -47,7 +49,8 @@ export function sign(
     .sign(key);
 }
 
-const config = () => loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' });
+const config = (extra: Record<string, string> = {}) =>
+  loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', RATE_LIMIT_PER_MINUTE: '100000', ...extra });
 
 /** A dependency that fails loudly if a test unexpectedly reaches it. */
 function unused<T extends object>(name: string): T {
@@ -90,16 +93,18 @@ export function fakeRepo() {
   return { repo, audit, deleted };
 }
 
-export async function buildTestApp() {
+export async function buildTestApp(env: Record<string, string> = {}) {
   const { privateKey, jwks } = await makeKeys();
   const fake = fakeRepo();
-  const app = createApp(config(), {
+  const app = createApp(config(env), {
     verifyToken: createTokenVerifier({ issuer: ISSUER, key: jwks, algorithms: ['ES256'] }),
     accountService: createAccountService(fake.repo),
     businessRepo: unused('businessRepo'),
     businessService: unused('businessService'),
     customerService: unused('customerService'),
     productService: unused('productService'),
+    invoiceService: unused('invoiceService'),
+    taxRateRepo: unused('taxRateRepo'),
   });
   return { app, privateKey, ...fake };
 }
@@ -130,6 +135,7 @@ export async function createUser(email = `${randomUUID()}@example.com`) {
 export async function buildDbApp() {
   const { privateKey, jwks } = await makeKeys();
   const db = getPool();
+  const database = createDatabase(db);
   const businessRepo = createBusinessRepository(db);
   const app = createApp(config(), {
     verifyToken: createTokenVerifier({ issuer: ISSUER, key: jwks, algorithms: ['ES256'] }),
@@ -143,6 +149,8 @@ export async function buildDbApp() {
     businessService: createBusinessService(businessRepo),
     customerService: createCustomerService(createCustomerRepository(db)),
     productService: createProductService(createProductRepository(db)),
+    invoiceService: createInvoiceService(database),
+    taxRateRepo: createTaxRateRepository(database),
   });
   const bearer = async (userId: string) => `Bearer ${await sign(privateKey, { sub: userId })}`;
   return { app, db, bearer };

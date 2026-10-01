@@ -1,11 +1,16 @@
+import type { InvoiceWriteInput, TaxRateInput } from '@invoiceflow/shared';
 import type {
+  ActivityEntry,
   BusinessProfile,
   BusinessUpdate,
   Customer,
   CustomerInput,
+  Invoice,
+  InvoiceSummary,
   Page,
   Product,
   ProductInput,
+  TaxRate,
 } from '../models';
 import { classifyError, type ErrorKind } from '../utils/errors';
 
@@ -105,6 +110,27 @@ export function createApiClient(opts: ApiClientOptions) {
       request<Customer>(`/v1/customers/${id}`, body('PUT', input)),
     deleteCustomer: (id: string) => request<void>(`/v1/customers/${id}`, { method: 'DELETE' }),
 
+    listInvoices: (p: InvoiceListParams) =>
+      request<Page<InvoiceSummary>>(`/v1/invoices${qs({ ...p })}`),
+    getInvoice: (id: string) => request<Invoice>(`/v1/invoices/${id}`),
+    createInvoice: (input: InvoiceWriteInput) =>
+      request<Invoice>('/v1/invoices', body('POST', input)),
+    updateInvoice: (id: string, input: InvoiceWriteInput) =>
+      request<Invoice>(`/v1/invoices/${id}`, body('PUT', input)),
+    deleteInvoice: (id: string) => request<void>(`/v1/invoices/${id}`, { method: 'DELETE' }),
+    transitionInvoice: (id: string, to: 'sent' | 'cancelled') =>
+      request<Invoice>(`/v1/invoices/${id}/transition`, body('POST', { to })),
+    getInvoiceActivity: (id: string) =>
+      request<{ items: ActivityEntry[] }>(`/v1/invoices/${id}/activity`),
+    listCustomerInvoices: (customerId: string, p: { limit?: number; offset?: number } = {}) =>
+      request<Page<InvoiceSummary>>(`/v1/customers/${customerId}/invoices${qs({ ...p })}`),
+
+    listTaxRates: () => request<{ items: TaxRate[] }>('/v1/tax-rates'),
+    createTaxRate: (input: TaxRateInput) => request<TaxRate>('/v1/tax-rates', body('POST', input)),
+    updateTaxRate: (id: string, input: TaxRateInput) =>
+      request<TaxRate>(`/v1/tax-rates/${id}`, body('PUT', input)),
+    deleteTaxRate: (id: string) => request<void>(`/v1/tax-rates/${id}`, { method: 'DELETE' }),
+
     listProducts: (p: ListParams) => request<Page<Product>>(`/v1/products${qs({ ...p })}`),
     getProduct: (id: string) => request<Product>(`/v1/products/${id}`),
     createProduct: (input: ProductInput) => request<Product>('/v1/products', body('POST', input)),
@@ -112,6 +138,13 @@ export function createApiClient(opts: ApiClientOptions) {
       request<Product>(`/v1/products/${id}`, body('PUT', input)),
     deleteProduct: (id: string) => request<void>(`/v1/products/${id}`, { method: 'DELETE' }),
   };
+}
+
+export interface InvoiceListParams extends ListParams {
+  status?: string;
+  from?: string;
+  to?: string;
+  customerId?: string;
 }
 
 export interface ListParams {

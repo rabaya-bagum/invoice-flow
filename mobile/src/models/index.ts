@@ -51,3 +51,65 @@ export function customerDisplayName(c: Pick<Customer, 'firstName' | 'lastName' |
   const person = [c.firstName, c.lastName].filter(Boolean).join(' ');
   return c.companyName || person || 'Unnamed customer';
 }
+
+export type { DisplayStatus, InvoiceStatus } from '@invoiceflow/shared';
+
+export interface TaxRate {
+  id: string;
+  name: string;
+  rateBps: number;
+  isDefault: boolean;
+}
+
+export interface InvoiceSummary {
+  id: string;
+  number: string;
+  status: import('@invoiceflow/shared').InvoiceStatus;
+  displayStatus: import('@invoiceflow/shared').DisplayStatus;
+  customerId: string;
+  customerName: string;
+  issueDate: string;
+  dueDate: string;
+  currency: string;
+  totalMinor: number;
+  amountPaidMinor: number;
+  balanceDueMinor: number;
+  updatedAt: string;
+}
+
+export interface InvoiceItem {
+  id: string;
+  productId: string | null;
+  description: string;
+  quantityMilli: number;
+  unitPriceMinor: number;
+  taxes: Array<{ name: string; rateBps: number }>;
+  lineTotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+}
+
+export interface Invoice extends InvoiceSummary {
+  taxInclusive: boolean;
+  discountType: 'percent' | 'fixed' | null;
+  discountValue: number | null;
+  feesMinor: number;
+  subtotalMinor: number;
+  discountTotalMinor: number;
+  taxTotalMinor: number;
+  notes: string | null;
+  terms: string | null;
+  version: number;
+  sentAt: string | null;
+  items: InvoiceItem[];
+  taxBreakdown: Array<{ name: string; rateBps: number; taxableAmount: number; tax: number }>;
+  warnings: string[];
+  editable: boolean;
+}
+
+export interface ActivityEntry {
+  id: string;
+  type: string;
+  message: string | null;
+  createdAt: string;
+}

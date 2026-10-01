@@ -65,7 +65,23 @@ const MESSAGES: Record<ErrorKind, string> = {
   unknown: 'Something went wrong. Please try again.',
 };
 
+/** Messages for specific API error codes (our own API's codes, safe to translate to plain language). */
+const CODE_MESSAGES: Record<string, string> = {
+  NUMBER_EXISTS: 'That invoice number is already used. Leave it blank to number automatically.',
+  INVALID_CUSTOMER: 'Choose a valid customer.',
+  INVALID_PRODUCT: 'One of the selected products no longer exists. Remove it and try again.',
+  INVALID_INVOICE: 'Some amounts are not valid. Check the discount, prices and quantities.',
+  VERSION_CONFLICT:
+    'This invoice was changed elsewhere. Go back and reopen it to see the latest version.',
+  INVOICE_LOCKED: 'This invoice can no longer be edited.',
+  INVOICE_NOT_DRAFT: 'Only drafts can be deleted. Cancel the invoice instead.',
+  INVALID_TRANSITION: 'That change is not allowed for this invoice.',
+  SKU_EXISTS: 'Another product already uses that SKU.',
+};
+
 /** Always a user-safe string. Raw backend messages are never shown. */
 export function friendlyMessage(err: unknown): string {
+  const code = (err as ErrorLike | undefined)?.code;
+  if (code && CODE_MESSAGES[code]) return CODE_MESSAGES[code];
   return MESSAGES[classifyError(err)];
 }

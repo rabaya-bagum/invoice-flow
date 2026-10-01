@@ -14,3 +14,11 @@ jest.mock('react-native-safe-area-context', () => {
     useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
   };
 });
+
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
+  const Picker = (props) =>
+    React.createElement(View, { accessibilityLabel: props.accessibilityLabel });
+  return { __esModule: true, default: Picker, DateTimePickerAndroid: { open: jest.fn() } };
+});

@@ -10,12 +10,18 @@ import {
   createCustomerController,
   createProductController,
 } from './controllers/catalog-controllers';
+import {
+  createInvoiceController,
+  createTaxRateController,
+} from './controllers/invoice-controllers';
 import { createMeController } from './controllers/me-controller';
 import { requireAuth } from './middleware/auth';
 import { requireBusiness } from './middleware/business';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { healthRouter } from './routes/health';
 import type { BusinessRepository } from './repositories/business-repository';
+import type { TaxRateRepository } from './repositories/tax-rate-repository';
+import type { InvoiceService } from './services/invoice-service';
 import { createCatalogRouter } from './routes/catalog';
 import { createMeRouter } from './routes/me';
 import type { AccountService } from './services/account-service';
@@ -29,6 +35,8 @@ export interface AppDeps {
   businessService: BusinessService;
   customerService: CustomerService;
   productService: ProductService;
+  invoiceService: InvoiceService;
+  taxRateRepo: TaxRateRepository;
 }
 
 export function createApp(config: Config, deps: AppDeps) {
@@ -49,7 +57,7 @@ export function createApp(config: Config, deps: AppDeps) {
   api.use(
     rateLimit({
       windowMs: 60_000,
-      limit: 120,
+      limit: config.RATE_LIMIT_PER_MINUTE,
       standardHeaders: 'draft-7',
       legacyHeaders: false,
       message: { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
@@ -67,6 +75,8 @@ export function createApp(config: Config, deps: AppDeps) {
       business: createBusinessController(deps.businessService),
       customers: createCustomerController(deps.customerService),
       products: createProductController(deps.productService),
+      invoices: createInvoiceController(deps.invoiceService),
+      taxRates: createTaxRateController(deps.taxRateRepo),
     }),
   );
   app.use('/v1', api);

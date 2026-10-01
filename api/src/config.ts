@@ -4,6 +4,8 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  /** Requests per minute per client IP for /v1. */
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
   /** Comma-separated list of allowed browser origins (the public pay page). */
   CORS_ORIGINS: z
     .string()

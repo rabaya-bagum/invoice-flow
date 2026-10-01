@@ -5,6 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import type { InvoiceWriteInput, TaxRateInput } from '@invoiceflow/shared';
 import type { BusinessUpdate, CustomerInput, ProductInput } from '../models';
 import { useAuth } from '../store/auth';
 
@@ -16,6 +17,8 @@ export const keys = {
   customer: (id: string) => ['customers', 'detail', id] as const,
   products: ['products'] as const,
   product: (id: string) => ['products', 'detail', id] as const,
+  invoices: ['invoices'] as const,
+  taxRates: ['tax-rates'] as const,
 };
 
 /** Only retry transient failures; a 4xx will not fix itself. */
@@ -124,5 +127,107 @@ export function useDeleteProduct() {
   return useMutation({
     mutationFn: (id: string) => api.deleteProduct(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.products }),
+  });
+}
+
+// ------------------------------------------------------------------ invoices & tax rates
+export interface InvoiceFilters {
+  search: string;
+  status?: string;
+  from?: string;
+  to?: string;
+}
+
+export function useInvoices(f: InvoiceFilters) {
+  const { api } = useAuth();
+  return useInfiniteQuery({
+    queryKey: [...keys.invoices, 'list', f],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.listInvoices({ ...f, limit: PAGE_SIZE, offset: pageParam }),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
+  });
+}
+
+export function useCustomerInvoices(customerId: string) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: [...keys.invoices, 'customer', customerId],
+    queryFn: () => api.listCustomerInvoices(customerId, { limit: 50 }),
+  });
+}
+
+export function useInvoice(id: string | undefined) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: [...keys.invoices, 'detail', id ?? ''],
+    queryFn: () => api.getInvoice(id as string),
+    enabled: Boolean(id),
+  });
+}
+
+export function useInvoiceActivity(id: string | undefined) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: [...keys.invoices, 'activity', id ?? ''],
+    queryFn: () => api.getInvoiceActivity(id as string),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSaveInvoice(id?: string) {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: InvoiceWriteInput) =>
+      id ? api.updateInvoice(id, input) : api.createInvoice(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.invoices }),
+  });
+}
+
+export function useDeleteInvoice() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteInvoice(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.invoices }),
+  });
+}
+
+export function useTransitionInvoice() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; to: 'sent' | 'cancelled' }) => api.transitionInvoice(v.id, v.to),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.invoices }),
+  });
+}
+
+export function useTaxRates() {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: keys.taxRates,
+    queryFn: async () => (await api.listTaxRates()).items,
+  });
+}
+
+export function useSaveTaxRate(id?: string) {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TaxRateInput) =>
+      id ? api.updateTaxRate(id, input) : api.createTaxRate(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.taxRates }),
+  });
+}
+
+export function useDeleteTaxRate() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteTaxRate(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.taxRates }),
   });
 }

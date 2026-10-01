@@ -2,6 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BusinessProfileScreen } from '../screens/BusinessProfileScreen';
+import { InvoiceListScreen } from '../screens/InvoiceListScreen';
+import { InvoiceScreen } from '../screens/InvoiceScreen';
+import { TaxRatesScreen } from '../screens/TaxRatesScreen';
 import { CustomerDetailScreen } from '../screens/CustomerDetailScreen';
 import { CustomerFormScreen } from '../screens/CustomerFormScreen';
 import { CustomerListScreen } from '../screens/CustomerListScreen';
@@ -11,11 +14,34 @@ import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import { ProductFormScreen } from '../screens/ProductFormScreen';
 import { ProductListScreen } from '../screens/ProductListScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import type { CustomersStackParams, MoreStackParams, TabParams } from './types';
+import type {
+  CustomersStackParams,
+  InvoicesStackParams,
+  MoreStackParams,
+  TabParams,
+} from './types';
 
 const Tabs = createBottomTabNavigator<TabParams>();
 const Customers = createNativeStackNavigator<CustomersStackParams>();
+const Invoices = createNativeStackNavigator<InvoicesStackParams>();
 const More = createNativeStackNavigator<MoreStackParams>();
+
+function InvoicesStack() {
+  return (
+    <Invoices.Navigator>
+      <Invoices.Screen
+        name="InvoiceList"
+        component={InvoiceListScreen}
+        options={{ title: 'Invoices' }}
+      />
+      <Invoices.Screen
+        name="Invoice"
+        component={InvoiceScreen}
+        options={({ route }) => ({ title: route.params?.id ? 'Invoice' : 'New invoice' })}
+      />
+    </Invoices.Navigator>
+  );
+}
 
 function CustomersStack() {
   return (
@@ -58,6 +84,7 @@ function MoreStack() {
         component={ProductFormScreen}
         options={({ route }) => ({ title: route.params?.id ? 'Edit item' : 'New item' })}
       />
+      <More.Screen name="TaxRates" component={TaxRatesScreen} options={{ title: 'Tax rates' }} />
       <More.Screen name="Settings" component={SettingsScreen} />
     </More.Navigator>
   );
@@ -79,12 +106,9 @@ export function AppTabs() {
       />
       <Tabs.Screen
         name="InvoicesTab"
+        component={InvoicesStack}
         options={{ title: 'Invoices', tabBarIcon: icon('document-text-outline') }}
-      >
-        {() => (
-          <PlaceholderScreen title="Invoices" hint="Invoice creation arrives in the next phase." />
-        )}
-      </Tabs.Screen>
+      />
       <Tabs.Screen
         name="CustomersTab"
         component={CustomersStack}

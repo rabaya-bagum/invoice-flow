@@ -12,7 +12,7 @@ export function setupApi(api: Record<string, jest.Mock>) {
 
 export function renderWithQuery(ui: ReactElement) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
@@ -51,3 +51,54 @@ export const business = {
   accentColor: '#2563EB',
   stripeChargesEnabled: false,
 };
+
+export const CUSTOMER_ID = '11111111-1111-4111-8111-111111111111';
+
+export const invoiceSummary = (over: Record<string, unknown> = {}) => ({
+  id: 'i1',
+  number: 'INV-0001',
+  status: 'sent',
+  displayStatus: 'sent',
+  customerId: CUSTOMER_ID,
+  customerName: 'Acme Ltd',
+  issueDate: '2026-10-01',
+  dueDate: '2026-10-15',
+  currency: 'USD',
+  totalMinor: 105_000,
+  amountPaidMinor: 0,
+  balanceDueMinor: 105_000,
+  updatedAt: '',
+  ...over,
+});
+
+export const invoiceDetail = (over: Record<string, unknown> = {}) => ({
+  ...invoiceSummary(),
+  taxInclusive: false,
+  discountType: null,
+  discountValue: null,
+  feesMinor: 0,
+  subtotalMinor: 100_000,
+  discountTotalMinor: 0,
+  taxTotalMinor: 5_000,
+  notes: null,
+  terms: null,
+  version: 2,
+  sentAt: null,
+  editable: true,
+  warnings: [],
+  taxBreakdown: [{ name: 'GST', rateBps: 500, taxableAmount: 100_000, tax: 5_000 }],
+  items: [
+    {
+      id: 'it1',
+      productId: null,
+      description: 'Web Development',
+      quantityMilli: 10_000,
+      unitPriceMinor: 10_000,
+      taxes: [{ name: 'GST', rateBps: 500 }],
+      lineTotalMinor: 100_000,
+      discountMinor: 0,
+      taxMinor: 5_000,
+    },
+  ],
+  ...over,
+});

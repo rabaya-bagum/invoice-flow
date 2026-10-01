@@ -19,6 +19,11 @@ export function MoreScreen({ navigation }: NativeStackScreenProps<MoreStackParam
         onPress={() => navigation.navigate('ProductList')}
       />
       <Row
+        title="Tax rates"
+        subtitle="Named rates for invoice items"
+        onPress={() => navigation.navigate('TaxRates')}
+      />
+      <Row
         title="Settings"
         subtitle="Security and account"
         onPress={() => navigation.navigate('Settings')}

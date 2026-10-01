@@ -108,6 +108,9 @@ importers:
       '@invoiceflow/shared':
         specifier: workspace:*
         version: link:../packages/shared
+      '@react-native-community/datetimepicker':
+        specifier: 9.1.0
+        version: 9.1.0(expo@57.0.26)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       '@react-navigation/bottom-tabs':
         specifier: ^7.20.0
         version: 7.20.0(@react-navigation/native@7.5.0(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native-safe-area-context@5.7.0(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native-screens@4.26.2(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
@@ -1126,6 +1129,19 @@ packages:
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
+
+  '@react-native-community/datetimepicker@9.1.0':
+    resolution: {integrity: sha512-eadbnk+I2vxvW30iTAsm/qlCnMMAadkifIMYNEB2lzhxN/SvlKc7S2V4k5DyrwjdCbqdcMk3t9K6fnUMcAV34w==}
+    peerDependencies:
+      expo: '>=52.0.0'
+      react: '*'
+      react-native: '*'
+      react-native-windows: '*'
+    peerDependenciesMeta:
+      expo:
+        optional: true
+      react-native-windows:
+        optional: true
 
   '@react-native/assets-registry@0.86.3':
     resolution: {integrity: sha512-TDhgCZA4wjJg84d5A9swiOQYPIWSKEEVdg9IwMFZDupQzW/F3QoLUrfAJOcalgqTDA9/buTB8awhE3Whwg6u9Q==}
@@ -5711,6 +5727,14 @@ snapshots:
       '@noble/hashes': 1.8.0
 
   '@pinojs/redact@0.4.0': {}
+
+  '@react-native-community/datetimepicker@9.1.0(expo@57.0.26)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      invariant: 2.2.4
+      react: 19.2.3
+      react-native: 0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3)
+    optionalDependencies:
+      expo: 57.0.26(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(react-dom@19.3.0(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3))(react-server-dom-webpack@19.2.8(react-dom@19.3.0(react@19.2.3))(react@19.2.3)(webpack@5.111.1))(react@19.2.3)(typescript@6.0.3)
 
   '@react-native/assets-registry@0.86.3': {}
 

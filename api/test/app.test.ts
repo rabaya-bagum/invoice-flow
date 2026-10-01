@@ -37,6 +37,18 @@ describe('app', () => {
   });
 });
 
+describe('rate limiting', () => {
+  it('returns 429 with the standard envelope once the limit is exceeded', async () => {
+    const limited = (await buildTestApp({ RATE_LIMIT_PER_MINUTE: '3' })).app;
+    const statuses: number[] = [];
+    for (let i = 0; i < 5; i++) statuses.push((await request(limited).get('/v1/me')).status);
+    expect(statuses).toEqual([401, 401, 401, 429, 429]);
+    const res = await request(limited).get('/v1/me');
+    expect(res.body).toEqual({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } });
+    expect((await request(limited).get('/health')).status).toBe(200); // health is exempt
+  });
+});
+
 describe('loadConfig', () => {
   it('fails fast on invalid values', () => {
     expect(() => loadConfig({ PORT: 'abc' })).toThrow(/Invalid environment/);

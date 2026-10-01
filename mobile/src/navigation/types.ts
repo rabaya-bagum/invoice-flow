@@ -13,17 +13,23 @@ export type CustomersStackParams = {
   CustomerForm: { id?: string } | undefined;
 };
 
+export type InvoicesStackParams = {
+  InvoiceList: undefined;
+  Invoice: { id?: string } | undefined;
+};
+
 export type MoreStackParams = {
   More: undefined;
   BusinessProfile: undefined;
   ProductList: undefined;
   ProductForm: { id?: string } | undefined;
+  TaxRates: undefined;
   Settings: undefined;
 };
 
 export type TabParams = {
   HomeTab: undefined;
-  InvoicesTab: undefined;
+  InvoicesTab: NavigatorScreenParams<InvoicesStackParams>;
   CustomersTab: NavigatorScreenParams<CustomersStackParams>;
   PaymentsTab: undefined;
   MoreTab: NavigatorScreenParams<MoreStackParams>;

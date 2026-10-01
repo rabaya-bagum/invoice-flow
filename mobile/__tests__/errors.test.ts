@@ -27,4 +27,14 @@ describe('error mapping', () => {
     });
     expect(msg).not.toMatch(/duplicate|constraint|pkey/);
   });
+
+  it('translates known API codes to plain language', () => {
+    expect(friendlyMessage({ kind: 'unknown', code: 'NUMBER_EXISTS' })).toMatch(/already used/);
+    expect(friendlyMessage({ kind: 'unknown', code: 'VERSION_CONFLICT' })).toMatch(
+      /changed elsewhere/,
+    );
+    expect(friendlyMessage({ kind: 'unknown', code: 'SOMETHING_NEW' })).toBe(
+      'Something went wrong. Please try again.',
+    );
+  });
 });

@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { createApp } from './app';
 import { loadConfig } from './config';
-import { createPool } from './db';
+import { createDatabase, createPool } from './db';
 import { createAccountRepository } from './repositories/account-repository';
 import { createBusinessRepository } from './repositories/business-repository';
 import { createCustomerRepository } from './repositories/customer-repository';
+import { createTaxRateRepository } from './repositories/tax-rate-repository';
 import { createProductRepository } from './repositories/product-repository';
 import { createAccountService } from './services/account-service';
 import {
@@ -12,6 +13,7 @@ import {
   createCustomerService,
   createProductService,
 } from './services/catalog-services';
+import { createInvoiceService } from './services/invoice-service';
 import { tokenVerifierFromConfig } from './services/token-verifier';
 
 const config = loadConfig();
@@ -26,7 +28,8 @@ const admin = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY
 });
 
 // Direct Postgres connection (bypasses RLS): every repository query is scoped by business_id.
-const db = createPool(config.DATABASE_URL);
+const pool = createPool(config.DATABASE_URL);
+const db = createDatabase(pool);
 const businessRepo = createBusinessRepository(db);
 
 const app = createApp(config, {
@@ -41,6 +44,8 @@ const app = createApp(config, {
   businessService: createBusinessService(businessRepo),
   customerService: createCustomerService(createCustomerRepository(db)),
   productService: createProductService(createProductRepository(db)),
+  invoiceService: createInvoiceService(db),
+  taxRateRepo: createTaxRateRepository(db),
 });
 
 const server = app.listen(config.PORT, () => {
@@ -49,6 +54,6 @@ const server = app.listen(config.PORT, () => {
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
-    server.close(() => void db.end().then(() => process.exit(0)));
+    server.close(() => void pool.end().then(() => process.exit(0)));
   });
 }

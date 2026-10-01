@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '../components/Button';
 import { ErrorState, LoadingState } from '../components/ListStates';
 import { Screen } from '../components/Screen';
-import { useCustomer } from '../hooks/queries';
+import { InvoiceRow } from './InvoiceListScreen';
+import { useCustomer, useCustomerInvoices } from '../hooks/queries';
 import { customerDisplayName } from '../models';
 import type { CustomersStackParams } from '../navigation/types';
 import { spacing } from '../theme';
@@ -15,6 +16,7 @@ export function CustomerDetailScreen({
 }: NativeStackScreenProps<CustomersStackParams, 'CustomerDetail'>) {
   const c = useTheme();
   const q = useCustomer(route.params.id);
+  const history = useCustomerInvoices(route.params.id);
 
   if (q.isPending) return <LoadingState />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
@@ -45,9 +47,25 @@ export function CustomerDetailScreen({
       <Field label="Notes" value={cust.notes} />
       <View style={[styles.history, { borderColor: c.border, backgroundColor: c.surface }]}>
         <Text style={{ color: c.text, fontWeight: '600' }}>Invoice history</Text>
-        <Text style={{ color: c.muted }}>
-          Invoices for this customer will appear here once invoicing is available.
-        </Text>
+        {history.isPending ? (
+          <Text style={{ color: c.muted }}>Loading…</Text>
+        ) : history.isError ? (
+          <Text style={{ color: c.muted }}>Could not load invoices.</Text>
+        ) : history.data.items.length === 0 ? (
+          <Text style={{ color: c.muted }}>No invoices for this customer yet.</Text>
+        ) : (
+          history.data.items.map((inv) => (
+            <InvoiceRow
+              key={inv.id}
+              inv={inv}
+              onPress={() =>
+                (
+                  navigation.getParent() as unknown as { navigate: (a: string, b: object) => void }
+                )?.navigate('InvoicesTab', { screen: 'Invoice', params: { id: inv.id } })
+              }
+            />
+          ))
+        )}
       </View>
       <Button
         title="Edit customer"

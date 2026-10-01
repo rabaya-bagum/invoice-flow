@@ -66,3 +66,15 @@ export function formatPercent(bps: number): string {
   const s = String(bps).padStart(3, '0');
   return `${s.slice(0, -2)}.${s.slice(-2)}`.replace(/\.?0+$/, '');
 }
+
+/** 1500 -> "1.500" (exact decimal string for Postgres numeric(12,3)). */
+export function quantityToDecimalString(milli: number): string {
+  if (!Number.isSafeInteger(milli) || milli < 0) {
+    throw new MoneyError(
+      'INVALID_QUANTITY',
+      'Quantity must be a non-negative integer (thousandths)',
+    );
+  }
+  const s = String(milli).padStart(4, '0');
+  return `${s.slice(0, -3)}.${s.slice(-3)}`;
+}

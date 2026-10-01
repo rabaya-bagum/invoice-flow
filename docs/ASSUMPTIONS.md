@@ -52,6 +52,38 @@
 - The dashboard and the "+" quick-create button are deferred: both need invoice data. The tab shell
   (Home, Invoices, Customers, Payments, More) is in place; Invoices and Payments are placeholders.
 
+## Invoices (Phase 4)
+- **Server is the only calculator of record.** `POST/PUT /v1/invoices` accept line content only
+  (quantity in thousandths, unit price in minor units, taxes as name + basis points). Totals, per-line
+  tax and discount allocation are computed by `calculateInvoice` and stored; any totals/status/amount
+  paid sent by a client are ignored (tested). The app shows a live preview with the same shared function.
+- **Statuses:** the full transition table lives in `packages/shared/src/invoice-status.ts`. Users can
+  trigger only `draft -> sent` ("mark as sent") and `draft|sent|viewed -> cancelled` (no payments).
+  Viewed / partially paid / paid / refunded are driven by tracking and payments in later phases.
+  `partially_paid -> cancelled` is not allowed. Partial refunds (`paid -> partially_paid`) are not modelled.
+- **Overdue** is derived in one SQL expression (due date before "today" in the business timezone, balance
+  > 0, status sent/viewed/partially_paid). It drives both the list filter and `displayStatus`; a test checks
+  it agrees with the shared TypeScript rule for every status. A due date equal to today is not overdue.
+  The one-time "overdue" notification job is Phase 7.
+- **Editing:** allowed while draft/sent/viewed and nothing has been paid. Deleting: drafts only (others are
+  cancelled). Updates lock the row (`FOR UPDATE`) and bump `version`; if the client sends a stale `version`
+  the API answers 409 `VERSION_CONFLICT`. This is the foundation for offline sync conflict handling.
+- **Numbering:** blank number = auto (`next_document_number`, per business prefix/padding) inside the create
+  transaction, so a failed create burns no number. If an auto number collides with a manually typed one, the
+  next is taken (savepoint + retry). A manual number that already exists is a 409 `NUMBER_EXISTS`.
+- **References:** customer must be the caller's and not deleted (else 422 `INVALID_CUSTOMER`); products must
+  be the caller's. Items copy description/price/taxes, so later product or tax-rate edits/deletes never change
+  an invoice.
+- **Due date before issue date** is allowed and returned as a `warnings` entry (`DUE_DATE_BEFORE_ISSUE_DATE`).
+- **Search** matches invoice number, customer name/email, and (for numeric input) the exact total in the
+  invoice's own currency (`currency_exponent()` in SQL, verified against the shared table). Date filters apply
+  to the issue date; the app computes Today/This week/This month in the business timezone (weeks start Monday).
+- **Audit and activity:** create/update/delete/transition write `audit_logs` and `invoice_activity` rows in the
+  same transaction. `GET /v1/invoices/:id/activity` backs the History tab.
+- Tax rates are named reusable rates (`/v1/tax-rates`, one default per business). Multiple taxes per line add
+  (no compounding).
+- **Preview is basic:** the Preview tab shows saved server totals; the designed preview and PDF are Phase 5.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).
