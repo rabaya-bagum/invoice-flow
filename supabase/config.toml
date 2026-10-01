@@ -1,0 +1,11 @@
+# Minimal Supabase CLI config (`supabase start`). Not verified in CI; see docs/ASSUMPTIONS.md.
+project_id = "invoiceflow"
+
+[auth]
+site_url = "invoiceflow://"
+additional_redirect_urls = ["invoiceflow://auth/callback", "invoiceflow://auth/reset"]
+minimum_password_length = 10
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
