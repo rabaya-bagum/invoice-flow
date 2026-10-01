@@ -1,4 +1,6 @@
+import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { SignJWT, exportJWK, generateKeyPair, createLocalJWKSet } from 'jose';
 import { Pool } from 'pg';
 import { createApp } from '../src/app';
@@ -13,6 +15,9 @@ import {
 import { createBusinessRepository } from '../src/repositories/business-repository';
 import { createCustomerRepository } from '../src/repositories/customer-repository';
 import { createTaxRateRepository } from '../src/repositories/tax-rate-repository';
+import { createMemoryAssetStorage } from '../src/services/asset-storage';
+import { createDocumentService } from '../src/services/document-service';
+import type { EmailMessage, EmailSender } from '../src/services/email';
 import { createInvoiceService } from '../src/services/invoice-service';
 import { createProductRepository } from '../src/repositories/product-repository';
 import { createAccountService } from '../src/services/account-service';
@@ -105,6 +110,7 @@ export async function buildTestApp(env: Record<string, string> = {}) {
     productService: unused('productService'),
     invoiceService: unused('invoiceService'),
     taxRateRepo: unused('taxRateRepo'),
+    documentService: unused('documentService'),
   });
   return { app, privateKey, ...fake };
 }
@@ -132,12 +138,35 @@ export async function createUser(email = `${randomUUID()}@example.com`) {
   return { id, email, businessId: (biz.rows[0] as { id: string }).id };
 }
 
-export async function buildDbApp() {
+export async function buildDbApp(env: Record<string, string> = {}) {
   const { privateKey, jwks } = await makeKeys();
   const db = getPool();
   const database = createDatabase(db);
   const businessRepo = createBusinessRepository(db);
-  const app = createApp(config(), {
+  const invoiceService = createInvoiceService(database);
+  const assets = createMemoryAssetStorage();
+  // Captures outgoing email; set `email.fail = true` to simulate a provider outage.
+  const email: EmailSender & { sent: EmailMessage[]; fail: boolean } = {
+    sent: [],
+    fail: false,
+    async send(m) {
+      if (this.fail) throw new Error('provider down');
+      this.sent.push(m);
+    },
+  };
+  const documentService = createDocumentService({
+    db: database,
+    invoices: invoiceService,
+    businesses: businessRepo,
+    assets,
+    email,
+    config: {
+      PUBLIC_APP_URL: 'https://api.test',
+      EMAIL_FROM: 'Test <noreply@test.dev>',
+      linkSecret: 'test-secret-test-secret-test-secret-1234',
+    },
+  });
+  const app = createApp(config(env), {
     verifyToken: createTokenVerifier({ issuer: ISSUER, key: jwks, algorithms: ['ES256'] }),
     accountService: createAccountService(
       createAccountRepository(
@@ -149,9 +178,29 @@ export async function buildDbApp() {
     businessService: createBusinessService(businessRepo),
     customerService: createCustomerService(createCustomerRepository(db)),
     productService: createProductService(createProductRepository(db)),
-    invoiceService: createInvoiceService(database),
+    invoiceService,
     taxRateRepo: createTaxRateRepository(database),
+    documentService,
   });
   const bearer = async (userId: string) => `Bearer ${await sign(privateKey, { sub: userId })}`;
-  return { app, db, bearer };
+  return { app, db, bearer, email, assets };
 }
+
+/**
+ * Extracts text and page count from a PDF. Runs pdf-parse in a plain Node subprocess because
+ * pdf.js uses dynamic imports that Jest's module system does not support.
+ */
+export async function pdfText(bytes: Buffer): Promise<{ text: string; pages: number }> {
+  const out = spawnSync(process.execPath, [path.join(__dirname, 'pdf-extract.js')], {
+    input: bytes,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (out.status !== 0) throw new Error(`pdf extraction failed: ${out.stderr.toString()}`);
+  return JSON.parse(out.stdout.toString());
+}
+
+/** A valid 1x1 PNG. */
+export const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);

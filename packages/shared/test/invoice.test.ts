@@ -2,6 +2,8 @@ import {
   addDays,
   canTransition,
   dateRangeFor,
+  defaultInvoiceEmail,
+  sendInvoiceInputSchema,
   displayStatus,
   INVOICE_STATUSES,
   invoiceInputSchema,
@@ -149,5 +151,28 @@ describe('misc', () => {
     });
     expect(invoiceListQuerySchema.safeParse({ status: 'bogus' }).success).toBe(false);
     expect(invoiceListQuerySchema.safeParse({ from: '2026-99-01' }).success).toBe(false);
+  });
+});
+
+describe('default invoice email', () => {
+  it('matches the required wording', () => {
+    const { subject, message } = defaultInvoiceEmail({
+      businessName: 'Acme Studio',
+      customerName: 'John Smith',
+      invoiceNumber: 'INV-0001',
+      totalMinor: 125_000,
+      currency: 'USD',
+      dueDate: '2026-10-15',
+    });
+    expect(subject).toBe('Invoice INV-0001 from Acme Studio');
+    expect(message).toBe(
+      'Hi John Smith,\n\nPlease find attached invoice INV-0001 for $1,250.00.\n\nPayment is due on October 15, 2026.\n\nThank you.',
+    );
+  });
+  it('validates send input', () => {
+    expect(sendInvoiceInputSchema.parse({})).toEqual({ to: null, subject: null, message: null });
+    expect(sendInvoiceInputSchema.parse({ to: ' A@B.CO ' }).to).toBe('a@b.co');
+    expect(sendInvoiceInputSchema.safeParse({ to: 'nope' }).success).toBe(false);
+    expect(sendInvoiceInputSchema.safeParse({ message: 'x'.repeat(5001) }).success).toBe(false);
   });
 });

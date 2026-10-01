@@ -57,6 +57,18 @@ wiped**). `SKIP_DB_TESTS=1` skips setup for quick runs of the non-DB suites.
 Biometric unlock, SecureStore persistence and deep links need a real device or simulator build:
 use a development build (`npx expo run:ios` / `run:android`) rather than relying on Expo Go.
 
+## Email, PDFs and customer links
+
+- **Email:** create a [Resend](https://resend.com) account, verify your sending domain, then set
+  `RESEND_API_KEY` and `EMAIL_FROM` in `api/.env`. Without a key the API only logs "would send ..."
+  (never the contents).
+- **Customer links:** `PUBLIC_APP_URL` must be the URL customers can reach (HTTPS in production).
+  `PUBLIC_LINK_SECRET` signs the links; keep it secret and stable.
+- **Logo and signature storage:** the API creates a private Supabase Storage bucket named
+  `business-assets` on boot (needs the service-role key). Uploads are PNG/JPEG up to 1 MB.
+- **PDF fonts:** invoices use the bundled DejaVu Sans (Latin, Greek, Cyrillic and most currency
+  symbols). Chinese, Japanese, Korean, Thai and Devanagari text are not supported in PDFs yet.
+
 ## Environment variables
 
 See `api/.env.example` and `mobile/.env.example`. The Supabase **service-role key** and Stripe **secret
@@ -65,5 +77,5 @@ key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and any
 ## Status
 
 Phases 1 (architecture, schema, money library, CI), 2 (authentication), 3 (business profile,
-customers, products, tab navigation) and 4 (invoices) are complete. Next: Phase 5, invoice preview,
-PDF, sending, and the public pay page. The dashboard shows placeholder numbers until Phase 8.
+customers, products, tab navigation), 4 (invoices) and 5 (preview, PDF, email/share, public invoice
+page) are complete. Next: Phase 6, Stripe payments. The dashboard shows placeholder numbers until Phase 8.

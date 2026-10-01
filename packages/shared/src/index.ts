@@ -7,3 +7,5 @@ export * from './schemas';
 export * from './dates';
 export * from './invoice-status';
 export * from './invoice-schemas';
+export * from './email-template';
+export * from './totals-rows';

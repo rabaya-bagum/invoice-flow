@@ -26,6 +26,7 @@ export interface BusinessProfile {
   country: string | null;
   website: string | null;
   taxNumber: string | null;
+  paymentInstructions: string | null;
   logoPath: string | null;
   signaturePath: string | null;
   defaultCurrency: string;
@@ -90,6 +91,7 @@ export interface InvoiceItem {
 }
 
 export interface Invoice extends InvoiceSummary {
+  customerEmail: string | null;
   taxInclusive: boolean;
   discountType: 'percent' | 'fixed' | null;
   discountValue: number | null;

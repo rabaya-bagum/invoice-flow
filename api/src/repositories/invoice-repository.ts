@@ -36,6 +36,7 @@ export interface InvoiceSummary {
 }
 
 export interface InvoiceRecord extends InvoiceSummary {
+  customerEmail: string | null;
   taxInclusive: boolean;
   discountType: 'percent' | 'fixed' | null;
   discountValue: number | null;
@@ -95,7 +96,7 @@ const SUMMARY = `i.id, i.number, i.status, ${DISPLAY_STATUS} AS "displayStatus",
   i.total_minor AS "totalMinor", i.amount_paid_minor AS "amountPaidMinor",
   i.balance_due_minor AS "balanceDueMinor", i.updated_at AS "updatedAt"`;
 
-const DETAIL = `${SUMMARY}, i.tax_inclusive AS "taxInclusive", i.discount_type AS "discountType",
+const DETAIL = `${SUMMARY}, c.email AS "customerEmail", i.tax_inclusive AS "taxInclusive", i.discount_type AS "discountType",
   i.discount_value AS "discountValue", i.fees_minor AS "feesMinor",
   i.subtotal_minor AS "subtotalMinor", i.discount_total_minor AS "discountTotalMinor",
   i.tax_total_minor AS "taxTotalMinor", i.notes, i.terms, i.version,
@@ -105,6 +106,18 @@ const DETAIL = `${SUMMARY}, i.tax_inclusive AS "taxInclusive", i.discount_type A
 const FROM = `FROM invoices i
   JOIN business_profiles b ON b.id = i.business_id
   JOIN customers c ON c.id = i.customer_id`;
+
+export interface CustomerPrint {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  country: string | null;
+}
 
 export const NUMBER_CONSTRAINT = 'invoices_business_id_number_key';
 
@@ -142,6 +155,14 @@ export interface InvoiceRepository {
     message: string | null,
     metadata?: object,
   ): Promise<void>;
+  customerForPrint(businessId: string, customerId: string): Promise<CustomerPrint | null>;
+  /** Returns the invoice's share salt, creating one if none exists. */
+  ensureShareSalt(businessId: string, id: string, newSalt: string): Promise<string | null>;
+  clearShareSalt(businessId: string, id: string): Promise<void>;
+  /** Public access: looks up by id only. The caller must verify the signed token before use. */
+  publicLookup(invoiceId: string): Promise<{ businessId: string; salt: string | null } | null>;
+  /** sent -> viewed, once. Returns true if this call changed the status. */
+  markViewed(businessId: string, id: string): Promise<boolean>;
   addAudit(entry: {
     businessId: string;
     userId: string;
@@ -365,6 +386,52 @@ export function createInvoiceRepository(db: Queryable): InvoiceRepository {
          VALUES ($1, $2, $3, $4, $5)`,
         [businessId, invoiceId, type, message, JSON.stringify(metadata)],
       );
+    },
+
+    async customerForPrint(businessId, customerId) {
+      // Soft-deleted customers are included: old invoices must still render.
+      const r = await db.query<CustomerPrint>(
+        `SELECT coalesce(nullif(company_name, ''), nullif(trim(concat_ws(' ', first_name, last_name)), ''), 'Customer') AS name,
+                email, phone, address_line1 AS "addressLine1", address_line2 AS "addressLine2", city,
+                province, postal_code AS "postalCode", country
+         FROM customers WHERE id = $1 AND business_id = $2`,
+        [customerId, businessId],
+      );
+      return r.rows[0] ?? null;
+    },
+
+    async ensureShareSalt(businessId, id, newSalt) {
+      const r = await db.query<{ public_token: string }>(
+        `UPDATE invoices SET public_token = coalesce(public_token, $3)
+         WHERE id = $1 AND business_id = $2 RETURNING public_token`,
+        [id, businessId, newSalt],
+      );
+      return r.rows[0]?.public_token ?? null;
+    },
+
+    async clearShareSalt(businessId, id) {
+      await db.query('UPDATE invoices SET public_token = NULL WHERE id = $1 AND business_id = $2', [
+        id,
+        businessId,
+      ]);
+    },
+
+    async publicLookup(invoiceId) {
+      const r = await db.query<{ business_id: string; public_token: string | null }>(
+        'SELECT business_id, public_token FROM invoices WHERE id = $1',
+        [invoiceId],
+      );
+      const row = r.rows[0];
+      return row ? { businessId: row.business_id, salt: row.public_token } : null;
+    },
+
+    async markViewed(businessId, id) {
+      const r = await db.query(
+        `UPDATE invoices SET status = 'viewed', viewed_at = now(), version = version + 1
+         WHERE id = $1 AND business_id = $2 AND status = 'sent'`,
+        [id, businessId],
+      );
+      return (r.rowCount ?? 0) > 0;
     },
 
     async addAudit(e) {

@@ -103,3 +103,17 @@ export const invoiceListQuerySchema = listQuerySchema.extend({
   customerId: z.string().uuid().optional(),
 });
 export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+
+const emailAddr = z.string().trim().toLowerCase().email('Enter a valid email address').max(254);
+
+/** POST /v1/invoices/:id/send. Everything is optional: defaults come from the customer and a template. */
+export const sendInvoiceInputSchema = z.object({
+  to: z.preprocess(blankToNull, emailAddr.nullish()).transform((v) => v ?? null),
+  subject: z
+    .preprocess(blankToNull, z.string().trim().max(200).nullish())
+    .transform((v) => v ?? null),
+  message: z
+    .preprocess(blankToNull, z.string().trim().max(5000).nullish())
+    .transform((v) => v ?? null),
+});
+export type SendInvoiceInput = z.infer<typeof sendInvoiceInputSchema>;

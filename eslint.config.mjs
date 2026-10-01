@@ -15,6 +15,14 @@ export default tseslint.config(
     },
   },
   {
+    // Plain Node helper scripts used by tests (run outside Jest).
+    files: ['api/test/pdf-extract.js'],
+    languageOptions: {
+      globals: { process: 'readonly', Buffer: 'readonly', require: 'readonly' },
+    },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       // Money must never go through floating point; shared/money uses bigint.

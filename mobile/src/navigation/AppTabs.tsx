@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BusinessProfileScreen } from '../screens/BusinessProfileScreen';
 import { InvoiceListScreen } from '../screens/InvoiceListScreen';
 import { InvoiceScreen } from '../screens/InvoiceScreen';
+import { SendInvoiceScreen } from '../screens/SendInvoiceScreen';
 import { TaxRatesScreen } from '../screens/TaxRatesScreen';
 import { CustomerDetailScreen } from '../screens/CustomerDetailScreen';
 import { CustomerFormScreen } from '../screens/CustomerFormScreen';
@@ -38,6 +39,11 @@ function InvoicesStack() {
         name="Invoice"
         component={InvoiceScreen}
         options={({ route }) => ({ title: route.params?.id ? 'Invoice' : 'New invoice' })}
+      />
+      <Invoices.Screen
+        name="SendInvoice"
+        component={SendInvoiceScreen}
+        options={{ title: 'Send invoice' }}
       />
     </Invoices.Navigator>
   );

@@ -76,6 +76,12 @@ const CODE_MESSAGES: Record<string, string> = {
   INVOICE_LOCKED: 'This invoice can no longer be edited.',
   INVOICE_NOT_DRAFT: 'Only drafts can be deleted. Cancel the invoice instead.',
   INVALID_TRANSITION: 'That change is not allowed for this invoice.',
+  PDF_FAILED: 'The PDF could not be generated. Please try again.',
+  EMAIL_FAILED: 'The invoice could not be sent. Check the email address and try again.',
+  NO_RECIPIENT: 'Add an email address for this customer, or enter one below.',
+  INVOICE_NOT_SENDABLE: 'This invoice can no longer be sent.',
+  IMAGE_TOO_LARGE: 'That image is too large. Choose one under 1 MB.',
+  IMAGE_TYPE: 'Use a PNG or JPEG image.',
   SKU_EXISTS: 'Another product already uses that SKU.',
 };
 

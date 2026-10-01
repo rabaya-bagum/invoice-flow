@@ -98,6 +98,7 @@ export const businessUpdateSchema = z
       z.string().trim().url('Enter a valid URL (https://...)').max(300).nullish(),
     ),
     taxNumber: textUpdate(60),
+    paymentInstructions: textUpdate(1000),
     defaultCurrency: z.string().refine(isSupportedCurrency, 'Unsupported currency').optional(),
     defaultTaxRateBps: bps.optional(),
     defaultPaymentTermsDays: z.number().int().min(0).max(365).optional(),

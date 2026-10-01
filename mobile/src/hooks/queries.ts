@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import type { InvoiceWriteInput, TaxRateInput } from '@invoiceflow/shared';
+import type { InvoiceWriteInput, SendInvoiceInput, TaxRateInput } from '@invoiceflow/shared';
 import type { BusinessUpdate, CustomerInput, ProductInput } from '../models';
 import { useAuth } from '../store/auth';
 
@@ -19,6 +19,7 @@ export const keys = {
   product: (id: string) => ['products', 'detail', id] as const,
   invoices: ['invoices'] as const,
   taxRates: ['tax-rates'] as const,
+  asset: (kind: string) => ['business-asset', kind] as const,
 };
 
 /** Only retry transient failures; a 4xx will not fix itself. */
@@ -229,5 +230,44 @@ export function useDeleteTaxRate() {
   return useMutation({
     mutationFn: (id: string) => api.deleteTaxRate(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.taxRates }),
+  });
+}
+
+/** Logo / signature as a data URI. `path` is part of the key so a new upload refetches. */
+export function useBusinessAsset(kind: 'logo' | 'signature', path: string | null) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: [...keys.asset(kind), path],
+    queryFn: () => api.getBusinessAssetUri(kind),
+    enabled: Boolean(path),
+    staleTime: Infinity,
+  });
+}
+
+export function useUploadBusinessAsset(kind: 'logo' | 'signature') {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { blob: Blob; contentType: string }) =>
+      api.uploadBusinessAsset(kind, v.blob, v.contentType),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.business }),
+  });
+}
+
+export function useDeleteBusinessAsset(kind: 'logo' | 'signature') {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.deleteBusinessAsset(kind),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.business }),
+  });
+}
+
+export function useSendInvoice(id: string) {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SendInvoiceInput) => api.sendInvoice(id, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.invoices }),
   });
 }

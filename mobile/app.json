@@ -28,6 +28,12 @@
         {
           "faceIDPermission": "InvoiceFlow uses Face ID to unlock the app."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "InvoiceFlow needs access to your photos so you can choose a logo or signature for your invoices."
+        }
       ]
     ]
   }

@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { Button } from '../components/Button';
 import { ChipRow } from '../components/ChipRow';
+import { InvoiceDocument } from '../components/InvoiceDocument';
 import { InvoiceFormView } from '../components/InvoiceFormView';
 import { ErrorState, LoadingState } from '../components/ListStates';
 import { Message } from '../components/Message';
 import { Screen } from '../components/Screen';
 import { StatusBadge } from '../components/StatusBadge';
-import { TotalsCard } from '../components/TotalsCard';
 import {
   useBusiness,
   useDeleteInvoice,
@@ -18,14 +18,13 @@ import {
   useTaxRates,
   useTransitionInvoice,
 } from '../hooks/queries';
+import { useInvoiceActions } from '../hooks/useInvoiceActions';
 import { useSubmit } from '../hooks/useSubmit';
-import type { Invoice } from '../models';
+import type { BusinessProfile, Invoice } from '../models';
 import type { InvoicesStackParams } from '../navigation/types';
 import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
-import { formatDate, money } from '../utils/format';
 import { invoiceToForm, newInvoiceForm } from '../utils/invoice-form';
-import { rowsFromInvoice } from '../utils/totals-rows';
 
 type Tab = 'edit' | 'preview' | 'history';
 
@@ -106,7 +105,13 @@ export function InvoiceScreen({
           />
         ) : null)}
 
-      {tab === 'preview' && inv ? <InvoicePreview inv={inv} /> : null}
+      {tab === 'preview' && inv && business.data ? (
+        <InvoicePreview
+          inv={inv}
+          business={business.data}
+          onSend={() => navigation.navigate('SendInvoice', { id: inv.id })}
+        />
+      ) : null}
       {tab === 'history' && inv ? <History id={inv.id} /> : null}
 
       {inv ? (
@@ -151,31 +156,58 @@ export function InvoiceScreen({
   );
 }
 
-/** Basic read-only view of the saved invoice (the designed preview and PDF come in the next phase). */
-function InvoicePreview({ inv }: { inv: Invoice }) {
-  const c = useTheme();
+/** Professional preview of the saved invoice, with PDF, sharing, email and pay-page actions. */
+function InvoicePreview({
+  inv,
+  business,
+  onSend,
+}: {
+  inv: Invoice;
+  business: BusinessProfile;
+  onSend: () => void;
+}) {
+  const actions = useInvoiceActions(inv, business.name);
+  const payable =
+    ['sent', 'viewed', 'partially_paid'].includes(inv.status) && inv.balanceDueMinor > 0;
+  const sendable = ['draft', 'sent', 'viewed', 'partially_paid'].includes(inv.status);
   return (
     <View style={{ gap: spacing.md }}>
-      <Text style={{ color: c.text, fontSize: 18, fontWeight: '600' }}>{inv.customerName}</Text>
-      <Text style={{ color: c.muted }}>
-        Issued {formatDate(inv.issueDate)} · Due {formatDate(inv.dueDate)}
-      </Text>
-      {inv.items.map((it) => (
-        <View
-          key={it.id}
-          style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md }}
-        >
-          <Text style={{ color: c.text, flex: 1 }}>
-            {it.description} ×{it.quantityMilli / 1000}
-          </Text>
-          <Text style={{ color: c.text, fontWeight: '600' }}>
-            {money(it.lineTotalMinor, inv.currency)}
-          </Text>
-        </View>
-      ))}
-      <TotalsCard rows={rowsFromInvoice(inv)} />
-      {inv.notes ? <Text style={{ color: c.muted }}>{inv.notes}</Text> : null}
-      {inv.terms ? <Text style={{ color: c.muted }}>{inv.terms}</Text> : null}
+      <InvoiceDocument invoice={inv} business={business} />
+      {actions.error ? <Message kind="error">{actions.error}</Message> : null}
+      {payable ? (
+        <Button
+          title="Pay invoice"
+          onPress={() => void actions.openPaymentPage()}
+          loading={actions.loading}
+        />
+      ) : null}
+      {sendable ? (
+        <Button
+          title="Email invoice"
+          onPress={onSend}
+          variant={payable ? 'secondary' : 'primary'}
+        />
+      ) : null}
+      <Button
+        title="Preview PDF"
+        variant="secondary"
+        onPress={() => void actions.previewPdf()}
+        loading={actions.loading}
+      />
+      <Button
+        title="Share PDF"
+        variant="secondary"
+        onPress={() => void actions.sharePdf()}
+        disabled={actions.loading}
+      />
+      {inv.status !== 'draft' ? (
+        <Button
+          title="Share link"
+          variant="secondary"
+          onPress={() => void actions.shareLink()}
+          disabled={actions.loading}
+        />
+      ) : null}
     </View>
   );
 }

@@ -1,4 +1,5 @@
-import type { InvoiceWriteInput, TaxRateInput } from '@invoiceflow/shared';
+import type { InvoiceWriteInput, SendInvoiceInput, TaxRateInput } from '@invoiceflow/shared';
+import { bytesToBase64 } from '../utils/base64';
 import type {
   ActivityEntry,
   BusinessProfile,
@@ -48,6 +49,7 @@ export function createApiClient(opts: ApiClientOptions) {
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
+          ...((init.headers as Record<string, string> | undefined) ?? {}),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
@@ -56,7 +58,8 @@ export function createApiClient(opts: ApiClientOptions) {
     }
   }
 
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  /** Sends the request (with one refresh-and-retry on 401) and returns the OK response. */
+  async function execute(path: string, init: RequestInit = {}): Promise<Response> {
     let res: Response;
     try {
       res = await send(path, init, await opts.getToken());
@@ -80,6 +83,11 @@ export function createApiClient(opts: ApiClientOptions) {
       }
       throw new ApiError(res.status >= 500 ? 'server' : 'unknown', res.status, code);
     }
+    return res;
+  }
+
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const res = await execute(path, init);
     return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
   }
 
@@ -124,6 +132,35 @@ export function createApiClient(opts: ApiClientOptions) {
       request<{ items: ActivityEntry[] }>(`/v1/invoices/${id}/activity`),
     listCustomerInvoices: (customerId: string, p: { limit?: number; offset?: number } = {}) =>
       request<Page<InvoiceSummary>>(`/v1/customers/${customerId}/invoices${qs({ ...p })}`),
+
+    sendInvoice: (id: string, input: SendInvoiceInput) =>
+      request<{ invoice: Invoice; sentTo: string }>(`/v1/invoices/${id}/send`, body('POST', input)),
+    createShareLink: (id: string) =>
+      request<{ url: string }>(`/v1/invoices/${id}/share-link`, { method: 'POST' }),
+    downloadInvoicePdf: async (id: string) =>
+      new Uint8Array(
+        await (await execute(`/v1/invoices/${id}/pdf`, { method: 'POST' })).arrayBuffer(),
+      ),
+
+    uploadBusinessAsset: (kind: 'logo' | 'signature', data: Blob, contentType: string) =>
+      request<void>(`/v1/business/${kind}`, {
+        method: 'PUT',
+        body: data,
+        headers: { 'Content-Type': contentType },
+      }),
+    deleteBusinessAsset: (kind: 'logo' | 'signature') =>
+      request<void>(`/v1/business/${kind}`, { method: 'DELETE' }),
+    /** The stored logo/signature as a data: URI for <Image>, or null if none is set. */
+    getBusinessAssetUri: async (kind: 'logo' | 'signature'): Promise<string | null> => {
+      try {
+        const res = await execute(`/v1/business/${kind}`);
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        return `data:${res.headers.get('content-type') ?? 'image/png'};base64,${bytesToBase64(bytes)}`;
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return null;
+        throw e;
+      }
+    },
 
     listTaxRates: () => request<{ items: TaxRate[] }>('/v1/tax-rates'),
     createTaxRate: (input: TaxRateInput) => request<TaxRate>('/v1/tax-rates', body('POST', input)),

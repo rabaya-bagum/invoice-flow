@@ -16,6 +16,7 @@ export interface BusinessProfile {
   country: string | null;
   website: string | null;
   taxNumber: string | null;
+  paymentInstructions: string | null;
   logoPath: string | null;
   signaturePath: string | null;
   defaultCurrency: string;
@@ -44,6 +45,7 @@ const COLUMNS: Record<string, string> = {
   country: 'country',
   website: 'website',
   taxNumber: 'tax_number',
+  paymentInstructions: 'payment_instructions',
   defaultCurrency: 'default_currency',
   defaultTaxRateBps: 'default_tax_rate_bps',
   defaultPaymentTermsDays: 'default_payment_terms_days',
@@ -59,7 +61,7 @@ const COLUMNS: Record<string, string> = {
 const SELECT = `
   id, name, owner_name AS "ownerName", email, phone, address_line1 AS "addressLine1",
   address_line2 AS "addressLine2", city, province, postal_code AS "postalCode", country,
-  website, tax_number AS "taxNumber", logo_path AS "logoPath", signature_path AS "signaturePath",
+  website, tax_number AS "taxNumber", payment_instructions AS "paymentInstructions", logo_path AS "logoPath", signature_path AS "signaturePath",
   default_currency AS "defaultCurrency", default_tax_rate_bps AS "defaultTaxRateBps",
   default_payment_terms_days AS "defaultPaymentTermsDays", timezone,
   invoice_prefix AS "invoicePrefix", estimate_prefix AS "estimatePrefix",
@@ -70,6 +72,8 @@ export interface BusinessRepository {
   findIdByOwner(userId: string): Promise<string | null>;
   get(businessId: string): Promise<BusinessProfile | null>;
   update(businessId: string, patch: BusinessUpdate): Promise<BusinessProfile | null>;
+  /** Records where a logo/signature is stored (null removes it). */
+  setAssetPath(businessId: string, kind: 'logo' | 'signature', key: string | null): Promise<void>;
 }
 
 export function createBusinessRepository(db: Queryable): BusinessRepository {
@@ -88,6 +92,11 @@ export function createBusinessRepository(db: Queryable): BusinessRepository {
         [businessId],
       );
       return r.rows[0] ?? null;
+    },
+
+    async setAssetPath(businessId, kind, key) {
+      const col = kind === 'logo' ? 'logo_path' : 'signature_path';
+      await db.query(`UPDATE business_profiles SET ${col} = $2 WHERE id = $1`, [businessId, key]);
     },
 
     async update(businessId, patch) {

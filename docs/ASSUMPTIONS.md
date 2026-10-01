@@ -84,6 +84,36 @@
   (no compounding).
 - **Preview is basic:** the Preview tab shows saved server totals; the designed preview and PDF are Phase 5.
 
+## Preview, PDF, sending, public page (Phase 5)
+- **Pay page is served by the API** (`GET /pay/:token`, server-rendered HTML) instead of a separate `web-pay`
+  app: one deploy, no extra toolchain, and Phase 6 adds Stripe.js to the same page. It uses a per-response
+  CSP nonce (`default-src 'none'`, one nonce'd script, no inline handlers) and escapes every dynamic value.
+- **Share links** are `<invoiceId>.<HMAC-SHA256(PUBLIC_LINK_SECRET, invoiceId:salt)>`. `invoices.public_token`
+  holds only a random per-invoice salt, so a database leak alone yields no working links. Revoking clears the
+  salt (old link dies, a new one differs). Wrong/forged/revoked/draft links all return the same 404, and the
+  view call returns 204 either way, so tokens cannot be probed.
+- **View tracking** happens only when the page's script POSTs `/view`, not on GET, so link-preview crawlers and
+  email scanners do not mark invoices "viewed". Only `sent -> viewed`, once.
+- **Sending** renders the PDF, sends via Resend, and only then marks a draft as sent (a provider failure
+  leaves the invoice untouched and returns 502 `EMAIL_FAILED`). Re-sending a sent/viewed/partially paid
+  invoice is allowed; cancelled/paid/refunded are not. Sends are rate-limited per user (20 per 10 min).
+- **Email content:** the editable default matches the required wording; the HTML copy escapes the message and
+  adds a "View invoice" button. Reply-To is the business email.
+- **PDF:** server-side with pdfkit, A4 (Letter for US/Canada), classic/modern/minimal templates driven by the
+  business template + accent colour, multi-page with repeated table header and "Page X of Y", automatic
+  wrapping of long descriptions, tax breakdown, payment instructions, pay link while a balance is due, notes,
+  terms, logo and signature. Totals rows come from the same shared function as the app and the web page.
+- **Logo/signature** are uploaded as raw PNG/JPEG (`PUT /v1/business/:kind`), type-checked by magic bytes
+  (SVG is refused), stored privately in Supabase Storage under `<businessId>/<kind>`. The signature is an
+  uploaded image of a signature; there is no draw-your-signature pad yet. The app resizes and re-encodes
+  picked images (converting HEIC) before upload.
+- **Mobile:** Preview tab = on-screen invoice document + actions. "Preview PDF" uses the native print preview;
+  "Share PDF" opens the native share sheet (Save to Files, Messages, Mail...); "Share link" shares the pay-page
+  URL via any messaging app; "Pay invoice" opens the pay page. There is no embedded PDF viewer.
+- **Not verified end to end:** real Resend delivery, Supabase Storage (tests use an in-memory store), the
+  native share sheet / print preview / image picker on a device.
+- The pay page shows a disabled "Online payment is not available yet" button until Phase 6.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

@@ -38,6 +38,7 @@ export const business = {
   country: null,
   website: null,
   taxNumber: null,
+  paymentInstructions: null,
   logoPath: null,
   signaturePath: null,
   defaultCurrency: 'USD',
@@ -73,6 +74,7 @@ export const invoiceSummary = (over: Record<string, unknown> = {}) => ({
 
 export const invoiceDetail = (over: Record<string, unknown> = {}) => ({
   ...invoiceSummary(),
+  customerEmail: 'billing@acme.test',
   taxInclusive: false,
   discountType: null,
   discountValue: null,

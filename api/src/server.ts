@@ -13,6 +13,9 @@ import {
   createCustomerService,
   createProductService,
 } from './services/catalog-services';
+import { createSupabaseAssetStorage, ensureAssetBucket } from './services/asset-storage';
+import { createDocumentService } from './services/document-service';
+import { createEmailSender } from './services/email';
 import { createInvoiceService } from './services/invoice-service';
 import { tokenVerifierFromConfig } from './services/token-verifier';
 
@@ -32,6 +35,19 @@ const pool = createPool(config.DATABASE_URL);
 const db = createDatabase(pool);
 const businessRepo = createBusinessRepository(db);
 
+const linkSecret =
+  config.PUBLIC_LINK_SECRET ??
+  (config.NODE_ENV === 'production'
+    ? (() => {
+        throw new Error('PUBLIC_LINK_SECRET is required in production');
+      })()
+    : 'dev-only-insecure-link-secret-change-me');
+const invoiceService = createInvoiceService(db);
+// Private bucket for logos/signatures; no-op if it already exists.
+void ensureAssetBucket(admin).catch((e: Error) =>
+  console.error('Could not ensure asset bucket:', e.message),
+);
+
 const app = createApp(config, {
   verifyToken: tokenVerifierFromConfig(config),
   accountService: createAccountService(
@@ -44,8 +60,16 @@ const app = createApp(config, {
   businessService: createBusinessService(businessRepo),
   customerService: createCustomerService(createCustomerRepository(db)),
   productService: createProductService(createProductRepository(db)),
-  invoiceService: createInvoiceService(db),
+  invoiceService,
   taxRateRepo: createTaxRateRepository(db),
+  documentService: createDocumentService({
+    db,
+    invoices: invoiceService,
+    businesses: businessRepo,
+    assets: createSupabaseAssetStorage(admin),
+    email: createEmailSender(config),
+    config: { ...config, linkSecret },
+  }),
 });
 
 const server = app.listen(config.PORT, () => {

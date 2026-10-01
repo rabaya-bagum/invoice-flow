@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { Button } from '../components/Button';
 import { ErrorState, LoadingState } from '../components/ListStates';
+import { ImageSetting } from '../components/ImageSetting';
 import { Message } from '../components/Message';
 import { Screen } from '../components/Screen';
 import { TextField } from '../components/TextField';
@@ -27,6 +28,7 @@ const EMPTY = {
   country: '',
   website: '',
   taxNumber: '',
+  paymentInstructions: '',
   defaultCurrency: 'USD',
   defaultTaxRate: '',
   defaultPaymentTermsDays: '14',
@@ -59,6 +61,7 @@ export function BusinessProfileScreen({
       country: b.country ?? '',
       website: b.website ?? '',
       taxNumber: b.taxNumber ?? '',
+      paymentInstructions: b.paymentInstructions ?? '',
       defaultCurrency: b.defaultCurrency,
       defaultTaxRate: b.defaultTaxRateBps ? formatPercent(b.defaultTaxRateBps) : '',
       defaultPaymentTermsDays: String(b.defaultPaymentTermsDays),
@@ -140,6 +143,12 @@ export function BusinessProfileScreen({
         placeholder: 'https://',
       })}
       {field('taxNumber', 'Tax number')}
+      {field('paymentInstructions', 'Payment instructions', {
+        multiline: true,
+        placeholder: 'Bank details, e-transfer address…',
+      })}
+      <ImageSetting kind="logo" label="Logo" path={q.data.logoPath} />
+      <ImageSetting kind="signature" label="Signature" path={q.data.signaturePath} />
       <Text style={{ color: c.muted, fontSize: 13 }}>
         Defaults for new invoices. Changing the currency does not change existing invoices.
       </Text>

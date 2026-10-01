@@ -15,12 +15,17 @@ import {
   createTaxRateController,
 } from './controllers/invoice-controllers';
 import { createMeController } from './controllers/me-controller';
+import {
+  createDocumentController,
+  createPublicController,
+} from './controllers/document-controllers';
 import { requireAuth } from './middleware/auth';
 import { requireBusiness } from './middleware/business';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { healthRouter } from './routes/health';
 import type { BusinessRepository } from './repositories/business-repository';
 import type { TaxRateRepository } from './repositories/tax-rate-repository';
+import type { DocumentService } from './services/document-service';
 import type { InvoiceService } from './services/invoice-service';
 import { createCatalogRouter } from './routes/catalog';
 import { createMeRouter } from './routes/me';
@@ -37,6 +42,7 @@ export interface AppDeps {
   productService: ProductService;
   invoiceService: InvoiceService;
   taxRateRepo: TaxRateRepository;
+  documentService: DocumentService;
 }
 
 export function createApp(config: Config, deps: AppDeps) {
@@ -52,6 +58,20 @@ export function createApp(config: Config, deps: AppDeps) {
   app.use(cors({ origin: config.CORS_ORIGINS, credentials: false }));
 
   app.use(healthRouter);
+
+  // Customer-facing, token-gated routes (no login). Tighter rate limit, never cached or indexed.
+  const publicCtrl = createPublicController(deps.documentService);
+  const publicLimiter = rateLimit({
+    windowMs: 60_000,
+    limit: config.PUBLIC_RATE_LIMIT_PER_MINUTE,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
+  });
+  app.get('/pay/:token', publicLimiter, publicCtrl.page);
+  app.get('/public/invoices/:token', publicLimiter, publicCtrl.json);
+  app.get('/public/invoices/:token/pdf', publicLimiter, publicCtrl.pdf);
+  app.post('/public/invoices/:token/view', publicLimiter, publicCtrl.view);
 
   const api = express.Router();
   api.use(
@@ -77,6 +97,21 @@ export function createApp(config: Config, deps: AppDeps) {
       products: createProductController(deps.productService),
       invoices: createInvoiceController(deps.invoiceService),
       taxRates: createTaxRateController(deps.taxRateRepo),
+      documents: createDocumentController(deps.documentService),
+      // Emails are costly and abusable: cap per signed-in user, not just per IP.
+      sendLimiter: rateLimit({
+        windowMs: 10 * 60_000,
+        limit: config.SEND_RATE_LIMIT_PER_10_MIN,
+        keyGenerator: (req) => req.user?.id ?? 'anonymous',
+        standardHeaders: 'draft-7',
+        legacyHeaders: false,
+        message: {
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'Too many invoices sent. Please wait a few minutes.',
+          },
+        },
+      }),
     }),
   );
   app.use('/v1', api);

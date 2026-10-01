@@ -52,3 +52,14 @@ export function dateRangeFor(preset: DatePreset, today: string): { from: string;
   const to = fmt(new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 0)));
   return { from, to };
 }
+
+/** "2026-10-15" -> "October 15, 2026". Calendar dates have no timezone, so format in UTC. */
+export function formatLongDate(date: string): string {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
+    timeZone: 'UTC',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}

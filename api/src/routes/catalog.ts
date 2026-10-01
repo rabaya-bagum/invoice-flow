@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { Router, raw, type RequestHandler } from 'express';
+import type { createDocumentController } from '../controllers/document-controllers';
 import type {
   createInvoiceController,
   createTaxRateController,
@@ -15,6 +16,8 @@ export function createCatalogRouter(c: {
   products: ReturnType<typeof createProductController>;
   invoices: ReturnType<typeof createInvoiceController>;
   taxRates: ReturnType<typeof createTaxRateController>;
+  documents: ReturnType<typeof createDocumentController>;
+  sendLimiter: RequestHandler;
 }) {
   const r = Router();
   r.get('/business', c.business.get);
@@ -40,6 +43,16 @@ export function createCatalogRouter(c: {
   r.delete('/invoices/:id', c.invoices.remove);
   r.post('/invoices/:id/transition', c.invoices.transition);
   r.get('/invoices/:id/activity', c.invoices.activity);
+
+  r.post('/invoices/:id/pdf', c.documents.pdf);
+  r.post('/invoices/:id/send', c.sendLimiter, c.documents.send);
+  r.post('/invoices/:id/share-link', c.documents.shareLink);
+  r.delete('/invoices/:id/share-link', c.documents.revokeShareLink);
+
+  const image = raw({ type: ['image/png', 'image/jpeg'], limit: 1_000_000 });
+  r.put('/business/:kind', image, c.documents.putAsset);
+  r.get('/business/:kind', c.documents.getAsset);
+  r.delete('/business/:kind', c.documents.removeAsset);
 
   r.get('/tax-rates', c.taxRates.list);
   r.post('/tax-rates', c.taxRates.create);
