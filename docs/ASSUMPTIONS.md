@@ -208,6 +208,19 @@
 - Tests that insert notification rows directly must set `push_sent_at`, otherwise another test file's
   push dispatch can claim them (the outbox claims across all businesses).
 
+## Launch readiness (Phase 10)
+- Phase 10 was scoped as launch readiness (build config, API docs, store paperwork), not new product
+  features. Estimates, offline drafts with sync and template-customization UI remain unbuilt.
+- `eas.json` takes `EXPO_PUBLIC_*` values from EAS environments rather than hard-coding URLs, so no
+  placeholder hostnames ship by accident. Over-the-air updates (`expo-updates`) are not installed.
+- Bundle id `com.invoiceflow.app`, the icons and the app name are placeholders. A test checks the
+  iOS and Android ids match and that the Maestro flows use the same id.
+- The OpenAPI file is generated from a hand-kept operation table; request bodies for the main resources
+  are described, many response bodies are intentionally loose. A drift test covers routes, not fields.
+- `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` was documented in `mobile/.env.example` but never read (the web pay
+  page gets its key from the API). It was removed; a test now keeps the file in step with the code.
+- The privacy policy and store answers are drafts from what the code does, not legal advice.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

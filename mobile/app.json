@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.invoiceflow.app"
+      "bundleIdentifier": "com.invoiceflow.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.invoiceflow.app",
@@ -19,7 +23,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 1
     },
     "plugins": [
       "expo-secure-store",
@@ -41,6 +46,7 @@
           "color": "#2563EB"
         }
       ]
-    ]
+    ],
+    "description": "Create, send and get paid for invoices from your phone."
   }
 }

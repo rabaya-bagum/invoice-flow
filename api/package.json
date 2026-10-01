@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "seed": "tsx src/seed/cli.ts",
+    "docs:build": "tsx scripts/build-docs.ts",
     "typecheck": "tsc --noEmit",
     "test": "jest"
   },

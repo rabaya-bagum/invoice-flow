@@ -106,6 +106,30 @@ sent, viewed, paid, partial payment, payment failed, overdue) and delivers it th
    retry loop**. Both are safe to run in several instances at once.
 5. Test a token by sending to it from <https://expo.dev/notifications>.
 
+## API documentation
+
+`docs/openapi.json` (OpenAPI 3.0) and `docs/invoiceflow.postman_collection.json` (set `baseUrl` and
+`accessToken`) are generated from `api/scripts/build-docs.ts`:
+
+```bash
+pnpm --filter @invoiceflow/api docs:build
+```
+
+A test fails if a route is added or removed without updating the table, or if the committed files are
+stale. Request schemas are summarised by hand; the zod schemas in `packages/shared` are the source of
+truth for validation.
+
+## Building the apps (EAS)
+
+`mobile/eas.json` defines `development` (dev client; simulator/APK), `preview` (internal testing) and
+`production` (store, auto-incrementing build numbers). See `docs/LAUNCH_CHECKLIST.md` for accounts,
+environment variables and credentials.
+
+```bash
+cd mobile && npm i -g eas-cli && eas login && eas init
+eas build --profile preview --platform all
+```
+
 ## End-to-end flows (Maestro)
 
 `mobile/.maestro/` holds three device flows: sign in, dashboard cards and quick-create menu, and
@@ -147,5 +171,8 @@ customers, products, tab navigation), 4 (invoices), 5 (preview, PDF, email/share
 page), 6 (Stripe payments), 7 (push notifications, overdue job, activity timeline) and 8 (dashboard,
 quick-create menu, demo seed data) and 9 (security review, isolation/abuse tests, Maestro flows) are
 complete. See `docs/SECURITY.md` for the review and what it does not cover.
-Next: remaining roadmap (estimates, offline drafts + sync, template customization), API docs, and
-store-readiness (EAS build profiles, icons, privacy policy).
+Phase 10 (launch readiness) adds EAS build profiles, an OpenAPI spec and Postman collection, and the
+launch checklist, store listing draft and privacy policy template under `docs/`.
+Not built yet (v1.1): estimates, offline drafts with sync, invoice template customization UI.
+Nothing has been run against real Apple/Google/Stripe/Resend/Expo accounts; start with
+`docs/LAUNCH_CHECKLIST.md`.
