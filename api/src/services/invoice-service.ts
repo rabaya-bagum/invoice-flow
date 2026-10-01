@@ -147,6 +147,48 @@ export function createInvoiceService(db: Database) {
     }
   }
 
+  /** Creates an invoice inside the caller's transaction (used by estimate conversion too). */
+  async function createWithin(
+    tx: Pick<Database, 'query'>,
+    actor: Actor,
+    input: InvoiceWriteInput,
+    totals: InvoiceTotals,
+  ): Promise<string> {
+    const r = repo(tx);
+    await validateReferences(r, actor.businessId, input);
+
+    let newId: string | null = null;
+    let number = '';
+    for (let attempt = 0; attempt < MAX_NUMBER_ATTEMPTS && !newId; attempt++) {
+      number = input.number ?? (await r.allocateNumber(actor.businessId));
+      // Savepoint: a taken number must not abort the whole transaction.
+      await tx.query('SAVEPOINT invoice_number');
+      try {
+        newId = await r.insert(actor.businessId, toWrite(input, totals, number));
+        await tx.query('RELEASE SAVEPOINT invoice_number');
+      } catch (e) {
+        await tx.query('ROLLBACK TO SAVEPOINT invoice_number');
+        if (!uniqueNumberViolation(e)) throw e;
+        if (input.number)
+          throw new AppError(409, 'NUMBER_EXISTS', `Invoice number ${number} is already used`);
+        // An auto number collided with a manually entered one: take the next.
+      }
+    }
+    if (!newId)
+      throw new AppError(503, 'NUMBERING_BUSY', 'Could not allocate an invoice number, try again');
+
+    await r.addActivity(actor.businessId, newId, 'created', 'Invoice created');
+    await r.addAudit({
+      businessId: actor.businessId,
+      userId: actor.userId,
+      action: 'invoice.create',
+      entityId: newId,
+      ip: actor.ip,
+      metadata: { number },
+    });
+    return newId;
+  }
+
   return {
     list: (businessId: string, q: InvoiceListQuery) => repo().list(businessId, q),
 
@@ -164,47 +206,12 @@ export function createInvoiceService(db: Database) {
 
     async create(actor: Actor, input: InvoiceWriteInput) {
       const totals = computeTotals(input);
-      const id = await db.transaction(async (tx) => {
-        const r = repo(tx);
-        await validateReferences(r, actor.businessId, input);
-
-        let newId: string | null = null;
-        let number = '';
-        for (let attempt = 0; attempt < MAX_NUMBER_ATTEMPTS && !newId; attempt++) {
-          number = input.number ?? (await r.allocateNumber(actor.businessId));
-          // Savepoint: a taken number must not abort the whole transaction.
-          await tx.query('SAVEPOINT invoice_number');
-          try {
-            newId = await r.insert(actor.businessId, toWrite(input, totals, number));
-            await tx.query('RELEASE SAVEPOINT invoice_number');
-          } catch (e) {
-            await tx.query('ROLLBACK TO SAVEPOINT invoice_number');
-            if (!uniqueNumberViolation(e)) throw e;
-            if (input.number)
-              throw new AppError(409, 'NUMBER_EXISTS', `Invoice number ${number} is already used`);
-            // An auto number collided with a manually entered one: take the next.
-          }
-        }
-        if (!newId)
-          throw new AppError(
-            503,
-            'NUMBERING_BUSY',
-            'Could not allocate an invoice number, try again',
-          );
-
-        await r.addActivity(actor.businessId, newId, 'created', 'Invoice created');
-        await r.addAudit({
-          businessId: actor.businessId,
-          userId: actor.userId,
-          action: 'invoice.create',
-          entityId: newId,
-          ip: actor.ip,
-          metadata: { number },
-        });
-        return newId;
-      });
+      const id = await db.transaction((tx) => createWithin(tx, actor, input, totals));
       return toDto((await repo().get(actor.businessId, id)) as InvoiceRecord, warningsFor(input));
     },
+
+    createWithin,
+    toDto,
 
     async update(actor: Actor, id: string, input: InvoiceWriteInput) {
       await db.transaction(async (tx) => {

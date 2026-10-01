@@ -83,6 +83,15 @@ describe('tenant isolation', () => {
         items: [{ description: 'Work', quantityMilli: 1000, unitPriceMinor: 10_000, taxes: [] }],
       })
     ).body.id as string;
+    const estimateId = (
+      await owner.call('post', '/v1/estimates').send({
+        customerId,
+        issueDate: '2026-10-01',
+        expiryDate: '2026-11-01',
+        currency: 'USD',
+        items: [{ description: 'Work', quantityMilli: 1000, unitPriceMinor: 10_000, taxes: [] }],
+      })
+    ).body.id as string;
     const bizId = owner.user.businessId;
     const paymentId = (
       await ctx.db.query(
@@ -97,7 +106,17 @@ describe('tenant isolation', () => {
         [bizId],
       )
     ).rows[0].id as string;
-    return { owner, stranger, customerId, productId, taxId, invoiceId, paymentId, notificationId };
+    return {
+      owner,
+      stranger,
+      customerId,
+      productId,
+      taxId,
+      invoiceId,
+      estimateId,
+      paymentId,
+      notificationId,
+    };
   }
 
   it("never reveals or changes another business's records by id", async () => {
@@ -151,6 +170,19 @@ describe('tenant isolation', () => {
         'create intent',
         Promise.resolve(s('post', '/v1/payments/create-intent').send({ invoiceId: f.invoiceId })),
       ],
+      ['get estimate', Promise.resolve(s('get', `/v1/estimates/${f.estimateId}`))],
+      ['update estimate', Promise.resolve(s('put', `/v1/estimates/${f.estimateId}`).send({}))],
+      ['delete estimate', Promise.resolve(s('delete', `/v1/estimates/${f.estimateId}`))],
+      [
+        'transition estimate',
+        Promise.resolve(s('post', `/v1/estimates/${f.estimateId}/transition`).send({ to: 'sent' })),
+      ],
+      ['convert estimate', Promise.resolve(s('post', `/v1/estimates/${f.estimateId}/convert`))],
+      ['estimate pdf', Promise.resolve(s('post', `/v1/estimates/${f.estimateId}/pdf`))],
+      [
+        'send estimate',
+        Promise.resolve(s('post', `/v1/estimates/${f.estimateId}/send`).send({ to: 'x@y.co' })),
+      ],
       [
         'read notification',
         Promise.resolve(s('post', `/v1/notifications/${f.notificationId}/read`)),
@@ -169,6 +201,7 @@ describe('tenant isolation', () => {
     expect((await o('get', `/v1/customers/${f.customerId}`)).body.companyName).toBe('Acme');
     expect((await o('get', `/v1/products/${f.productId}`)).body.name).toBe('Widget');
     expect((await o('get', `/v1/invoices/${f.invoiceId}`)).body.status).toBe('draft');
+    expect((await o('get', `/v1/estimates/${f.estimateId}`)).body.status).toBe('draft');
     expect((await o('get', `/v1/tax-rates`)).body.items.map((t: { id: string }) => t.id)).toContain(
       f.taxId,
     );
@@ -184,6 +217,7 @@ describe('tenant isolation', () => {
       '/v1/customers',
       '/v1/products',
       '/v1/invoices',
+      '/v1/estimates',
       '/v1/payments',
       '/v1/notifications',
     ]) {

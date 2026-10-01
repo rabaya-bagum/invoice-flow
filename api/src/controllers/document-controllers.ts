@@ -34,6 +34,19 @@ export function createDocumentController(svc: DocumentService) {
       const { number, bytes } = await svc.pdf(businessId(req), idParam(req));
       sendPdf(res, number, bytes);
     },
+    async estimatePdf(req: Request, res: Response) {
+      const { number, bytes } = await svc.estimatePdf(businessId(req), idParam(req));
+      sendPdf(res, number, bytes);
+    },
+    async estimateSend(req: Request, res: Response) {
+      res.json(
+        await svc.estimateSend(
+          actor(req),
+          idParam(req),
+          sendInvoiceInputSchema.parse(req.body ?? {}),
+        ),
+      );
+    },
     async send(req: Request, res: Response) {
       res.json(
         await svc.send(actor(req), idParam(req), sendInvoiceInputSchema.parse(req.body ?? {})),

@@ -4,6 +4,7 @@ import type { createNotificationController } from '../controllers/notification-c
 import type { createPaymentController } from '../controllers/payment-controllers';
 import type { createDocumentController } from '../controllers/document-controllers';
 import type {
+  createEstimateController,
   createInvoiceController,
   createTaxRateController,
 } from '../controllers/invoice-controllers';
@@ -18,6 +19,7 @@ export function createCatalogRouter(c: {
   customers: ReturnType<typeof createCustomerController>;
   products: ReturnType<typeof createProductController>;
   invoices: ReturnType<typeof createInvoiceController>;
+  estimates: ReturnType<typeof createEstimateController>;
   taxRates: ReturnType<typeof createTaxRateController>;
   documents: ReturnType<typeof createDocumentController>;
   payments: ReturnType<typeof createPaymentController>;
@@ -54,6 +56,16 @@ export function createCatalogRouter(c: {
   r.post('/invoices/:id/send', c.sendLimiter, c.documents.send);
   r.post('/invoices/:id/share-link', c.documents.shareLink);
   r.delete('/invoices/:id/share-link', c.documents.revokeShareLink);
+
+  r.get('/estimates', c.estimates.list);
+  r.post('/estimates', c.estimates.create);
+  r.get('/estimates/:id', c.estimates.get);
+  r.put('/estimates/:id', c.estimates.update);
+  r.delete('/estimates/:id', c.estimates.remove);
+  r.post('/estimates/:id/transition', c.estimates.transition);
+  r.post('/estimates/:id/convert', c.estimates.convert);
+  r.post('/estimates/:id/pdf', c.documents.estimatePdf);
+  r.post('/estimates/:id/send', c.sendLimiter, c.documents.estimateSend);
 
   const image = raw({ type: ['image/png', 'image/jpeg'], limit: 1_000_000 });
   r.put('/business/:kind', image, c.documents.putAsset);

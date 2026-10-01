@@ -1,4 +1,7 @@
 import {
+  estimateInputSchema,
+  estimateListQuerySchema,
+  estimateTransitionSchema,
   invoiceInputSchema,
   invoiceListQuerySchema,
   taxRateInputSchema,
@@ -6,6 +9,7 @@ import {
 } from '@invoiceflow/shared';
 import type { Request, Response } from 'express';
 import type { TaxRateRepository } from '../repositories/tax-rate-repository';
+import type { EstimateService } from '../services/estimate-service';
 import type { InvoiceService } from '../services/invoice-service';
 import { notFound } from '../utils/errors';
 import { businessId, idParam } from '../utils/http';
@@ -68,6 +72,38 @@ export function createTaxRateController(repo: TaxRateRepository) {
     async remove(req: Request, res: Response) {
       if (!(await repo.delete(businessId(req), idParam(req)))) throw notFound('Tax rate');
       res.status(204).end();
+    },
+  };
+}
+
+export function createEstimateController(svc: EstimateService) {
+  return {
+    async list(req: Request, res: Response) {
+      const { items, total } = await svc.list(
+        businessId(req),
+        estimateListQuerySchema.parse(req.query),
+      );
+      res.json({ items, total });
+    },
+    get: async (req: Request, res: Response) =>
+      void res.json(await svc.get(businessId(req), idParam(req))),
+    async create(req: Request, res: Response) {
+      res.status(201).json(await svc.create(actor(req), estimateInputSchema.parse(req.body)));
+    },
+    update: async (req: Request, res: Response) =>
+      void res.json(
+        await svc.update(actor(req), idParam(req), estimateInputSchema.parse(req.body)),
+      ),
+    async remove(req: Request, res: Response) {
+      await svc.remove(actor(req), idParam(req));
+      res.status(204).end();
+    },
+    transition: async (req: Request, res: Response) =>
+      void res.json(
+        await svc.transition(actor(req), idParam(req), estimateTransitionSchema.parse(req.body).to),
+      ),
+    async convert(req: Request, res: Response) {
+      res.status(201).json(await svc.convert(actor(req), idParam(req)));
     },
   };
 }

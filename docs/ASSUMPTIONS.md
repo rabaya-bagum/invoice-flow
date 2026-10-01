@@ -201,7 +201,7 @@
 ## Hardening (Phase 9)
 - See `docs/SECURITY.md` for the review, the fixes and the gaps. Isolation is tested by sweeping every
   route declared in `src/routes/*.ts` (the test reads the route files, so a new route is covered the
-  moment it is added) and by id-probing 22 actions as a second tenant.
+  moment it is added) and by id-probing 29 actions as a second tenant.
 - Cross-tenant ids answer 404 everywhere, including `GET /customers/:id/invoices` (previously an empty
   200). Soft-deleted customers still resolve so their invoice history stays reachable.
 - Maestro flows are written but unrun; the Jest drift guard only checks labels, not behaviour.

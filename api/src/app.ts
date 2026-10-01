@@ -11,6 +11,7 @@ import {
   createProductController,
 } from './controllers/catalog-controllers';
 import {
+  createEstimateController,
   createInvoiceController,
   createTaxRateController,
 } from './controllers/invoice-controllers';
@@ -37,6 +38,7 @@ import type { DocumentService } from './services/document-service';
 import type { DashboardService } from './services/dashboard-service';
 import type { NotificationService } from './services/notification-service';
 import type { PaymentService } from './services/payment-service';
+import type { EstimateService } from './services/estimate-service';
 import type { InvoiceService } from './services/invoice-service';
 import { createCatalogRouter } from './routes/catalog';
 import { createMeRouter } from './routes/me';
@@ -52,6 +54,7 @@ export interface AppDeps {
   customerService: CustomerService;
   productService: ProductService;
   invoiceService: InvoiceService;
+  estimateService: EstimateService;
   taxRateRepo: TaxRateRepository;
   documentService: DocumentService;
   paymentService: PaymentService;
@@ -150,6 +153,7 @@ export function createApp(config: Config, deps: AppDeps) {
       customers: createCustomerController(deps.customerService),
       products: createProductController(deps.productService),
       invoices: createInvoiceController(deps.invoiceService),
+      estimates: createEstimateController(deps.estimateService),
       taxRates: createTaxRateController(deps.taxRateRepo),
       documents: createDocumentController(deps.documentService),
       payments: createPaymentController(deps.paymentService),

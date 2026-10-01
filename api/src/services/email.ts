@@ -68,17 +68,28 @@ export function createEmailSender(config: Config): EmailSender {
 }
 
 /** Plain text + simple HTML (button to the pay page). The user's message is escaped. */
-export function buildInvoiceEmail(opts: { message: string; payUrl: string; businessName: string }) {
+export function buildInvoiceEmail(opts: {
+  message: string;
+  /** Omit for documents with no public page (estimates): no button, just the attachment. */
+  payUrl?: string | null;
+  businessName: string;
+  documentName?: 'invoice' | 'estimate';
+}) {
+  const doc = opts.documentName ?? 'invoice';
   const paragraphs = opts.message
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 16px">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
     .join('');
+  const button = opts.payUrl
+    ? `<p style="margin:24px 0"><a href="${escapeHtml(opts.payUrl)}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold;display:inline-block">View invoice</a></p>\n`
+    : '';
   const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f7fa;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;font-size:16px;line-height:1.5">
 ${paragraphs}
-<p style="margin:24px 0"><a href="${escapeHtml(opts.payUrl)}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold;display:inline-block">View invoice</a></p>
-<p style="margin:0;color:#64748b;font-size:13px">Sent by ${escapeHtml(opts.businessName)} using InvoiceFlow. The invoice PDF is attached.</p>
+${button}<p style="margin:0;color:#64748b;font-size:13px">Sent by ${escapeHtml(opts.businessName)} using InvoiceFlow. The ${doc} PDF is attached.</p>
 </div></body></html>`;
-  const text = `${opts.message}\n\nView invoice online: ${opts.payUrl}\n`;
+  const text = opts.payUrl
+    ? `${opts.message}\n\nView invoice online: ${opts.payUrl}\n`
+    : `${opts.message}\n`;
   return { html, text };
 }

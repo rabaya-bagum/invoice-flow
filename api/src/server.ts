@@ -22,6 +22,7 @@ import { createPaymentService } from './services/payment-service';
 import { createStripeGateway } from './services/stripe-gateway';
 import { createDocumentService } from './services/document-service';
 import { createEmailSender } from './services/email';
+import { createEstimateService } from './services/estimate-service';
 import { createInvoiceService } from './services/invoice-service';
 import { tokenVerifierFromConfig } from './services/token-verifier';
 
@@ -49,6 +50,7 @@ const linkSecret =
       })()
     : 'dev-only-insecure-link-secret-change-me');
 const invoiceService = createInvoiceService(db);
+const estimateService = createEstimateService(db, invoiceService);
 // Private bucket for logos/signatures; no-op if it already exists.
 void ensureAssetBucket(admin).catch((e: Error) =>
   console.error('Could not ensure asset bucket:', e.message),
@@ -78,6 +80,7 @@ const app = createApp(config, {
   customerService: createCustomerService(createCustomerRepository(db)),
   productService: createProductService(createProductRepository(db)),
   invoiceService,
+  estimateService,
   taxRateRepo: createTaxRateRepository(db),
   paymentService: createPaymentService({
     db,
@@ -93,6 +96,7 @@ const app = createApp(config, {
     afterNotify: notificationService.kick,
     db,
     invoices: invoiceService,
+    estimates: estimateService,
     businesses: businessRepo,
     assets: createSupabaseAssetStorage(admin),
     email: createEmailSender(config),

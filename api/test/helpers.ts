@@ -25,6 +25,7 @@ import { createOverdueService } from '../src/services/overdue-service';
 import type { PushMessage, PushResult, PushSender } from '../src/services/push';
 import { createPaymentService } from '../src/services/payment-service';
 import type { ChargeLite, PaymentIntentLite, StripeGateway } from '../src/services/stripe-gateway';
+import { createEstimateService } from '../src/services/estimate-service';
 import { createInvoiceService } from '../src/services/invoice-service';
 import { createProductRepository } from '../src/repositories/product-repository';
 import { createAccountService } from '../src/services/account-service';
@@ -116,6 +117,7 @@ export async function buildTestApp(env: Record<string, string> = {}) {
     customerService: unused('customerService'),
     productService: unused('productService'),
     invoiceService: unused('invoiceService'),
+    estimateService: unused('estimateService'),
     taxRateRepo: unused('taxRateRepo'),
     documentService: unused('documentService'),
     paymentService: unused('paymentService'),
@@ -157,6 +159,7 @@ export async function buildDbApp(
   const database = createDatabase(db);
   const businessRepo = createBusinessRepository(db);
   const invoiceService = createInvoiceService(database);
+  const estimateService = createEstimateService(database, invoiceService);
   const assets = createMemoryAssetStorage();
   // Captures outgoing email; set `email.fail = true` to simulate a provider outage.
   const email: EmailSender & { sent: EmailMessage[]; fail: boolean } = {
@@ -170,6 +173,7 @@ export async function buildDbApp(
   const documentService = createDocumentService({
     db: database,
     invoices: invoiceService,
+    estimates: estimateService,
     businesses: businessRepo,
     assets,
     email,
@@ -230,6 +234,7 @@ export async function buildDbApp(
     customerService: createCustomerService(createCustomerRepository(db)),
     productService: createProductService(createProductRepository(db)),
     invoiceService,
+    estimateService,
     taxRateRepo: createTaxRateRepository(database),
     documentService,
     paymentService,

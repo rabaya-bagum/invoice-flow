@@ -29,3 +29,31 @@ export function defaultInvoiceEmail(i: EmailTemplateInput): { subject: string; m
     ].join('\n'),
   };
 }
+
+export interface EstimateEmailInput {
+  businessName: string;
+  customerName: string;
+  estimateNumber: string;
+  totalMinor: number;
+  currency: string;
+  expiryDate: string;
+}
+
+/** Default estimate email shown (and editable) before sending. */
+export function defaultEstimateEmail(i: EstimateEmailInput): { subject: string; message: string } {
+  const total = isSupportedCurrency(i.currency)
+    ? formatMoney(i.totalMinor, i.currency)
+    : `${i.totalMinor} ${i.currency}`;
+  return {
+    subject: `Estimate ${i.estimateNumber} from ${i.businessName}`,
+    message: [
+      `Hi ${i.customerName},`,
+      '',
+      `Please find attached estimate ${i.estimateNumber} for ${total}.`,
+      '',
+      `It is valid until ${formatLongDate(i.expiryDate)}.`,
+      '',
+      'Let us know if you would like to go ahead.',
+    ].join('\n'),
+  };
+}

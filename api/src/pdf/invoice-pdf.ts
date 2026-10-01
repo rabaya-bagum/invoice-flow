@@ -68,6 +68,8 @@ export interface PdfInput {
   signature?: Buffer | null;
   /** Public pay-page URL, printed (and clickable) while a balance is outstanding. */
   payUrl?: string | null;
+  /** An estimate prints "ESTIMATE" and "Valid until", with no payment rows. `dueDate` carries the expiry. */
+  kind?: 'invoice' | 'estimate';
 }
 
 const FONT_DIR = path.join(path.dirname(require.resolve('dejavu-fonts-ttf/package.json')), 'ttf');
@@ -108,11 +110,16 @@ const STATUS_LABEL: Record<string, string> = {
   refunded: 'REFUNDED',
   overdue: 'OVERDUE',
   partially_paid: 'PARTIALLY PAID',
+  accepted: 'ACCEPTED',
+  rejected: 'DECLINED',
+  expired: 'EXPIRED',
 };
 
 /** Renders a multi-page, Unicode-capable invoice PDF. */
 export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
   const { invoice: inv, business: biz, customer, payUrl } = input;
+  const isEstimate = input.kind === 'estimate';
+  const docName = isEstimate ? 'Estimate' : 'Invoice';
   const accent = /^#[0-9a-f]{6}$/i.test(biz.accentColor) ? biz.accentColor : '#2563EB';
   const opt = (k: string) => biz.displayOptions[k] !== false; // everything shown unless switched off
   const modern = biz.template === 'modern';
@@ -122,7 +129,7 @@ export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
     size: usesLetter(biz.country) ? 'LETTER' : 'A4',
     margins: { top: MARGIN, left: MARGIN, right: MARGIN, bottom: BOTTOM },
     bufferPages: true,
-    info: { Title: `Invoice ${inv.number}`, Author: biz.name, Producer: 'InvoiceFlow' },
+    info: { Title: `${docName} ${inv.number}`, Author: biz.name, Producer: 'InvoiceFlow' },
   });
   doc.registerFont('R', path.join(FONT_DIR, 'DejaVuSans.ttf'));
   doc.registerFont('B', path.join(FONT_DIR, 'DejaVuSans-Bold.ttf'));
@@ -195,7 +202,7 @@ export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
 
   const rx = MARGIN + W * 0.58;
   const rw = W * 0.42;
-  text('INVOICE', rx, top, {
+  text(docName.toUpperCase(), rx, top, {
     font: 'B',
     size: 24,
     color: modern ? '#FFFFFF' : accent,
@@ -204,9 +211,9 @@ export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
   });
   let rightY = doc.y + 6;
   const meta: Array<[string, string]> = [
-    ['Invoice no.', inv.number],
+    [`${docName} no.`, inv.number],
     ['Issue date', formatLongDate(inv.issueDate)],
-    ['Due date', formatLongDate(inv.dueDate)],
+    [isEstimate ? 'Valid until' : 'Due date', formatLongDate(inv.dueDate)],
   ];
   for (const [k, v] of meta) {
     text(k, rx, rightY, { size: 9, color: headMuted, width: rw * 0.4 });
@@ -323,7 +330,7 @@ export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
   }
 
   // ------------------------------------------------------------------ totals
-  const rows = buildTotalsRows({
+  const allRows = buildTotalsRows({
     currency: inv.currency,
     taxInclusive: inv.taxInclusive,
     subtotal: inv.subtotalMinor,
@@ -334,12 +341,17 @@ export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
     amountPaid: inv.amountPaidMinor,
     balanceDue: inv.balanceDueMinor,
   });
+  // An estimate has nothing paid or owing yet: its Total is the headline row.
+  const rows = isEstimate
+    ? allRows.filter((r) => r.label !== 'Amount paid' && r.label !== 'Balance due')
+    : allRows;
+  const headline = isEstimate ? 'Total' : 'Balance due';
   const tw = 236;
   ensure(rows.length * 20 + 24);
   doc.y += 14;
   for (const r of rows) {
     const y = doc.y;
-    if (r.strong && r.label === 'Balance due') {
+    if (r.strong && r.label === headline) {
       doc.rect(MARGIN + W - tw - 8, y - 4, tw + 8, 24).fill(tint(accent, 0.12));
     }
     text(r.label, MARGIN + W - tw, y + 1, {
@@ -361,7 +373,9 @@ export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
 
   // ------------------------------------------------------------------ payment, notes, terms
   const owing =
-    inv.balanceDueMinor > 0 && ['sent', 'viewed', 'partially_paid'].includes(inv.status);
+    !isEstimate &&
+    inv.balanceDueMinor > 0 &&
+    ['sent', 'viewed', 'partially_paid'].includes(inv.status);
   const section = (title: string, body: string, link?: string) => {
     ensure(48);
     doc.y += 14;
@@ -372,7 +386,7 @@ export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
       .fillColor(INK)
       .text(body, MARGIN, doc.y + 3, { width: W, link, underline: !!link });
   };
-  if (opt('showPaymentInfo')) {
+  if (opt('showPaymentInfo') && !isEstimate) {
     if (owing && payUrl) section('PAY ONLINE', payUrl, payUrl);
     if (biz.paymentInstructions) section('PAYMENT INFORMATION', biz.paymentInstructions);
   }
@@ -409,7 +423,7 @@ export function renderInvoicePdf(input: PdfInput): Promise<Buffer> {
     const m = doc.page.margins.bottom;
     doc.page.margins.bottom = 0; // writing inside the bottom margin must not trigger a new page
     const y = doc.page.height - 36;
-    text(`${biz.name} · Invoice ${inv.number}`, MARGIN, y, {
+    text(`${biz.name} · ${docName} ${inv.number}`, MARGIN, y, {
       size: 8,
       color: MUTED,
       width: W / 2,
