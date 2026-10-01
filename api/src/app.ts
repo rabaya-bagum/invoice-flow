@@ -25,6 +25,7 @@ import {
   createWebhookHandler,
   stripeReturnHandlers,
 } from './controllers/payment-controllers';
+import { createNotificationController } from './controllers/notification-controllers';
 import { requireAuth } from './middleware/auth';
 import { requireBusiness } from './middleware/business';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
@@ -32,6 +33,7 @@ import { healthRouter } from './routes/health';
 import type { BusinessRepository } from './repositories/business-repository';
 import type { TaxRateRepository } from './repositories/tax-rate-repository';
 import type { DocumentService } from './services/document-service';
+import type { NotificationService } from './services/notification-service';
 import type { PaymentService } from './services/payment-service';
 import type { InvoiceService } from './services/invoice-service';
 import { createCatalogRouter } from './routes/catalog';
@@ -51,6 +53,7 @@ export interface AppDeps {
   taxRateRepo: TaxRateRepository;
   documentService: DocumentService;
   paymentService: PaymentService;
+  notificationService: NotificationService;
 }
 
 export function createApp(config: Config, deps: AppDeps) {
@@ -97,7 +100,7 @@ export function createApp(config: Config, deps: AppDeps) {
   app.post(
     '/v1/payments/webhook',
     express.raw({ type: 'application/json', limit: '1mb' }),
-    createWebhookHandler(deps.paymentService),
+    createWebhookHandler(deps.paymentService, deps.notificationService.kick),
   );
 
   // Stripe onboarding landing pages (hand control back to the mobile app).
@@ -139,6 +142,7 @@ export function createApp(config: Config, deps: AppDeps) {
       taxRates: createTaxRateController(deps.taxRateRepo),
       documents: createDocumentController(deps.documentService),
       payments: createPaymentController(deps.paymentService),
+      notifications: createNotificationController(deps.notificationService),
       // Emails are costly and abusable: cap per signed-in user, not just per IP.
       sendLimiter: rateLimit({
         windowMs: 10 * 60_000,

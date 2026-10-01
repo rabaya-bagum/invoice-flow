@@ -22,6 +22,7 @@ function setup(
       handleAuthUrl: jest.fn(),
     },
     biometrics: bio,
+    push: { unregister: jest.fn(async () => {}) },
     api: {},
   } as unknown as Services;
   let ctx!: AuthContextValue;

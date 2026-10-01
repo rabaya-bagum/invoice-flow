@@ -19,6 +19,9 @@ import { createMemoryAssetStorage } from '../src/services/asset-storage';
 import { createDocumentService } from '../src/services/document-service';
 import type { EmailMessage, EmailSender } from '../src/services/email';
 import Stripe from 'stripe';
+import { createNotificationService } from '../src/services/notification-service';
+import { createOverdueService } from '../src/services/overdue-service';
+import type { PushMessage, PushResult, PushSender } from '../src/services/push';
 import { createPaymentService } from '../src/services/payment-service';
 import type { ChargeLite, PaymentIntentLite, StripeGateway } from '../src/services/stripe-gateway';
 import { createInvoiceService } from '../src/services/invoice-service';
@@ -115,6 +118,7 @@ export async function buildTestApp(env: Record<string, string> = {}) {
     taxRateRepo: unused('taxRateRepo'),
     documentService: unused('documentService'),
     paymentService: unused('paymentService'),
+    notificationService: unused('notificationService'),
   });
   return { app, privateKey, ...fake };
 }
@@ -173,6 +177,32 @@ export async function buildDbApp(
       linkSecret: 'test-secret-test-secret-test-secret-1234',
     },
   });
+  // Fake push provider. Tests control delivery by calling notifications.dispatchPending() themselves.
+  const push: PushSender & {
+    batches: PushMessage[][];
+    fail: Error | null;
+    errors: Record<string, string>;
+  } = {
+    batches: [],
+    fail: null,
+    errors: {}, // token -> Expo error code to return for that token
+    async send(messages) {
+      if (this.fail) throw this.fail;
+      this.batches.push(messages);
+      return messages.map((m): PushResult =>
+        this.errors[m.to]
+          ? { to: m.to, ok: false, error: this.errors[m.to] }
+          : { to: m.to, ok: true },
+      );
+    },
+  };
+  const realNotifications = createNotificationService({
+    db: database,
+    sender: push,
+    log: () => undefined,
+  });
+  const notificationService = { ...realNotifications, kick: () => undefined }; // no background sends in tests
+  const overdue = createOverdueService(database);
   const stripe = fakeStripe();
   const paymentService = createPaymentService({
     db: database,
@@ -201,9 +231,20 @@ export async function buildDbApp(
     taxRateRepo: createTaxRateRepository(database),
     documentService,
     paymentService,
+    notificationService,
   });
   const bearer = async (userId: string) => `Bearer ${await sign(privateKey, { sub: userId })}`;
-  return { app, db, bearer, email, assets, stripe };
+  return {
+    app,
+    db,
+    bearer,
+    email,
+    assets,
+    stripe,
+    push,
+    notifications: notificationService,
+    overdue,
+  };
 }
 
 /**
@@ -227,6 +268,11 @@ export const TINY_PNG = Buffer.from(
 
 // ------------------------------------------------------------------ fake Stripe
 export const WEBHOOK_SECRET = 'whsec_test_secret';
+
+// Test files run in parallel against ONE database with unique constraints on Stripe ids, so fake ids must
+// be unique across fake instances and worker processes (pid + a process-wide counter).
+let idSeq = 0;
+const uniq = () => `${process.pid}${String(++idSeq).padStart(5, '0')}`;
 
 interface FakeIntent extends PaymentIntentLite {
   amount: number;
@@ -261,12 +307,10 @@ export function fakeStripe() {
     failChargeLookup: 0,
     failIntentCreate: null as string | null,
   };
-  let n = 0;
-
   const gateway: StripeGateway = {
     async createExpressAccount() {
       state.counts.createAccount++;
-      const id = `acct_${++n}`;
+      const id = `acct_${uniq()}`;
       accounts.set(id, {
         chargesEnabled: false,
         payoutsEnabled: false,
@@ -293,7 +337,7 @@ export function fakeStripe() {
         throw new GatewayError(state.failIntentCreate, 'stripe says no');
       }
       state.counts.createPaymentIntent++;
-      const id = `pi_${++n}`;
+      const id = `pi_${uniq()}`;
       const pi: FakeIntent = {
         id,
         clientSecret: `${id}_secret_abc`,
@@ -327,7 +371,7 @@ export function fakeStripe() {
       const done = refundsByKey.get(key);
       if (done) return done;
       state.refunds.push({ ...p, key });
-      const r = { id: `re_${++n}`, status: 'succeeded' };
+      const r = { id: `re_${uniq()}`, status: 'succeeded' };
       refundsByKey.set(key, r);
       return r;
     },
@@ -338,7 +382,7 @@ export function fakeStripe() {
   };
 
   /** Builds a validly signed webhook request body + header. */
-  function signed(type: string, object: unknown, id = `evt_${++n}`) {
+  function signed(type: string, object: unknown, id = `evt_${uniq()}`) {
     const payload = JSON.stringify({ id, object: 'event', type, data: { object } });
     return {
       id,

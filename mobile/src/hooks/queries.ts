@@ -22,6 +22,7 @@ export const keys = {
   asset: (kind: string) => ['business-asset', kind] as const,
   payments: ['payments'] as const,
   connect: ['connect-status'] as const,
+  notifications: ['notifications'] as const,
 };
 
 /** Only retry transient failures; a 4xx will not fix itself. */
@@ -317,4 +318,32 @@ export function useConnectStatus() {
 export function useStartConnectOnboarding() {
   const { api } = useAuth();
   return useMutation({ mutationFn: () => api.startConnectOnboarding() });
+}
+
+// ------------------------------------------------------------------ notifications
+export function useNotifications() {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: keys.notifications,
+    queryFn: () => api.listNotifications({ limit: 50 }),
+    staleTime: 15_000,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.markNotificationRead(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.notifications }),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.markAllNotificationsRead(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.notifications }),
+  });
 }

@@ -4,6 +4,7 @@ import type { Database } from '../db';
 import { renderInvoicePdf, type PdfInput } from '../pdf/invoice-pdf';
 import type { BusinessProfile, BusinessRepository } from '../repositories/business-repository';
 import { createInvoiceRepository, type CustomerPrint } from '../repositories/invoice-repository';
+import { createNotificationRepository } from '../repositories/notification-repository';
 import { AppError, notFound } from '../utils/errors';
 import { makeToken, newSalt, parseToken, verifyToken } from '../utils/public-token';
 import { sniffImage, type AssetStorage } from './asset-storage';
@@ -21,6 +22,8 @@ interface Deps {
   email: EmailSender;
   config: Pick<Config, 'PUBLIC_APP_URL' | 'EMAIL_FROM'> & { linkSecret: string };
   renderPdf?: (input: PdfInput) => Promise<Buffer>;
+  /** Called after a transaction that queued a notification commits (triggers prompt push delivery). */
+  afterNotify?: () => void;
 }
 
 export interface LoadedDocument {
@@ -173,6 +176,13 @@ export function createDocumentService(deps: Deps) {
         const current = await r.lock(actor.businessId, id);
         if (current?.status === 'draft') await r.setStatus(actor.businessId, id, 'sent');
         await r.addActivity(actor.businessId, id, 'sent', `Sent to ${to}`, { to });
+        await createNotificationRepository(tx).add({
+          businessId: actor.businessId,
+          type: 'invoice_sent',
+          title: 'Invoice sent',
+          body: `Invoice ${inv.number} was sent to ${doc.customer.name}.`,
+          data: { invoiceId: id },
+        });
         await r.addAudit({
           businessId: actor.businessId,
           userId: actor.userId,
@@ -182,6 +192,7 @@ export function createDocumentService(deps: Deps) {
           metadata: { to },
         });
       });
+      deps.afterNotify?.();
       return { invoice: await invoices.get(actor.businessId, id), sentTo: to };
     },
 
@@ -250,18 +261,29 @@ export function createDocumentService(deps: Deps) {
     async recordView(token: string): Promise<boolean> {
       const ref = await this.resolve(token);
       if (!ref) return false;
-      return db.transaction(async (tx) => {
+      const changed = await db.transaction(async (tx) => {
         const r = repo(tx);
         const changed = await r.markViewed(ref.businessId, ref.invoiceId);
-        if (changed)
+        if (changed) {
           await r.addActivity(
             ref.businessId,
             ref.invoiceId,
             'viewed',
             'Invoice viewed by customer',
           );
+          const invoice = await r.get(ref.businessId, ref.invoiceId);
+          await createNotificationRepository(tx).add({
+            businessId: ref.businessId,
+            type: 'invoice_viewed',
+            title: 'Invoice viewed',
+            body: `Invoice ${invoice?.number} has been viewed by ${invoice?.customerName}.`,
+            data: { invoiceId: ref.invoiceId },
+          });
+        }
         return changed;
       });
+      if (changed) deps.afterNotify?.();
+      return changed;
     },
   };
 }

@@ -9,6 +9,7 @@ import { SignUpScreen } from '../screens/SignUpScreen';
 import { VerifyEmailScreen } from '../screens/VerifyEmailScreen';
 import { useAuth } from '../store/auth';
 import { AppTabs } from './AppTabs';
+import { flushPendingTarget, navigationRef } from './ref';
 import type { AuthStackParams } from './types';
 
 const AuthStack = createNativeStackNavigator<AuthStackParams>();
@@ -43,6 +44,12 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={dark ? DarkTheme : DefaultTheme}>{content}</NavigationContainer>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={flushPendingTarget}
+      theme={dark ? DarkTheme : DefaultTheme}
+    >
+      {content}
+    </NavigationContainer>
   );
 }

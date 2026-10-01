@@ -110,8 +110,10 @@ export function createPaymentService(deps: Deps) {
       );
       return { url: link.url };
     } catch (e) {
-      if (e instanceof AppError) throw e;
-      throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', 'Could not reach the payment provider');
+      // Only Stripe failures are "provider errors"; anything else (e.g. our database) must surface as itself.
+      if (e instanceof GatewayError)
+        throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', 'Could not reach the payment provider');
+      throw e;
     }
   }
 

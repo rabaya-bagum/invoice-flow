@@ -10,6 +10,7 @@ import type {
   CustomerInput,
   Invoice,
   InvoiceSummary,
+  NotificationPage,
   Page,
   Product,
   ProductInput,
@@ -175,6 +176,16 @@ export function createApiClient(opts: ApiClientOptions) {
         `/v1/payments/${id}/refund`,
         body('POST', amountMinor ? { amountMinor } : {}),
       ),
+
+    listNotifications: (p: { unread?: boolean; limit?: number; offset?: number } = {}) =>
+      request<NotificationPage>(`/v1/notifications${qs({ ...p })}`),
+    markNotificationRead: (id: string) =>
+      request<void>(`/v1/notifications/${id}/read`, { method: 'POST' }),
+    markAllNotificationsRead: () =>
+      request<{ updated: number }>('/v1/notifications/read-all', { method: 'POST' }),
+    registerPushToken: (token: string, platform: 'ios' | 'android') =>
+      request<void>('/v1/push-tokens', body('POST', { token, platform })),
+    removePushToken: (token: string) => request<void>('/v1/push-tokens', body('DELETE', { token })),
 
     listTaxRates: () => request<{ items: TaxRate[] }>('/v1/tax-rates'),
     createTaxRate: (input: TaxRateInput) => request<TaxRate>('/v1/tax-rates', body('POST', input)),

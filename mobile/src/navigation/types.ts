@@ -31,6 +31,7 @@ export type MoreStackParams = {
   ProductForm: { id?: string } | undefined;
   TaxRates: undefined;
   OnlinePayments: undefined;
+  Notifications: undefined;
   Settings: undefined;
 };
 

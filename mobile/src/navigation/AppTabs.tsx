@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BusinessProfileScreen } from '../screens/BusinessProfileScreen';
 import { InvoiceListScreen } from '../screens/InvoiceListScreen';
 import { InvoiceScreen } from '../screens/InvoiceScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { OnlinePaymentsScreen } from '../screens/OnlinePaymentsScreen';
 import { PaymentDetailScreen } from '../screens/PaymentDetailScreen';
 import { PaymentListScreen } from '../screens/PaymentListScreen';
@@ -117,6 +119,7 @@ function MoreStack() {
         component={OnlinePaymentsScreen}
         options={{ title: 'Online payments' }}
       />
+      <More.Screen name="Notifications" component={NotificationsScreen} />
       <More.Screen name="Settings" component={SettingsScreen} />
     </More.Navigator>
   );
@@ -129,6 +132,7 @@ const icon =
   );
 
 export function AppTabs() {
+  usePushNotifications();
   return (
     <Tabs.Navigator screenOptions={{ headerShown: false }}>
       <Tabs.Screen

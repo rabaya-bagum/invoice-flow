@@ -1,9 +1,12 @@
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Message } from '../components/Message';
 import { StatCard } from '../components/StatCard';
 import type { MeResponse } from '../services/api';
+import { Button } from '../components/Button';
+import { useNotifications } from '../hooks/queries';
 import { useAuth } from '../store/auth';
 import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
@@ -13,6 +16,8 @@ import { friendlyMessage } from '../utils/errors';
 export function HomeScreen() {
   const { api } = useAuth();
   const c = useTheme();
+  const navigation = useNavigation<{ navigate: (tab: string, p: object) => void }>();
+  const unread = useNotifications().data?.unread ?? 0;
   const [me, setMe] = useState<MeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +38,11 @@ export function HomeScreen() {
         <Text style={{ color: c.text, fontSize: 24, fontWeight: '700' }}>
           {me ? me.business.name : 'InvoiceFlow'}
         </Text>
+        <Button
+          title={unread > 0 ? `Notifications (${unread})` : 'Notifications'}
+          variant="secondary"
+          onPress={() => navigation.navigate('MoreTab', { screen: 'Notifications' })}
+        />
         {error ? <Message kind="error">{error}</Message> : null}
         <View style={styles.row}>
           <StatCard label="Outstanding" amountMinor={425000} currency="USD" />

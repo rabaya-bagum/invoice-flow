@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { Button } from '../components/Button';
 import { ChipRow } from '../components/ChipRow';
+import { Timeline } from '../components/Timeline';
 import { InvoiceDocument } from '../components/InvoiceDocument';
 import { InvoiceFormView } from '../components/InvoiceFormView';
 import { ErrorState, LoadingState } from '../components/ListStates';
@@ -213,20 +214,8 @@ function InvoicePreview({
 }
 
 function History({ id }: { id: string }) {
-  const c = useTheme();
   const q = useInvoiceActivity(id);
   if (q.isPending) return <LoadingState />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
-  return (
-    <View style={{ gap: spacing.md }}>
-      {q.data.items.map((a) => (
-        <View key={a.id}>
-          <Text style={{ color: c.muted, fontSize: 13 }}>
-            {new Date(a.createdAt).toLocaleString()}
-          </Text>
-          <Text style={{ color: c.text, fontSize: 16 }}>{a.message ?? a.type}</Text>
-        </View>
-      ))}
-    </View>
-  );
+  return <Timeline entries={q.data.items} />;
 }

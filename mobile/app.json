@@ -34,6 +34,12 @@
         {
           "photosPermission": "InvoiceFlow needs access to your photos so you can choose a logo or signature for your invoices."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#2563EB"
+        }
       ]
     ]
   }

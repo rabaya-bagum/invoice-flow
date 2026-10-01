@@ -14,6 +14,9 @@ import {
   createProductService,
 } from './services/catalog-services';
 import { createSupabaseAssetStorage, ensureAssetBucket } from './services/asset-storage';
+import { createExpoPushSender, createLogPushSender } from './services/push';
+import { createNotificationService } from './services/notification-service';
+import { createOverdueService, startSchedulers } from './services/overdue-service';
 import { createPaymentService } from './services/payment-service';
 import { createStripeGateway } from './services/stripe-gateway';
 import { createDocumentService } from './services/document-service';
@@ -50,7 +53,17 @@ void ensureAssetBucket(admin).catch((e: Error) =>
   console.error('Could not ensure asset bucket:', e.message),
 );
 
+const pushEnabled = config.PUSH_ENABLED
+  ? config.PUSH_ENABLED === 'true'
+  : config.NODE_ENV === 'production';
+const notificationService = createNotificationService({
+  db,
+  sender: pushEnabled ? createExpoPushSender(config.EXPO_ACCESS_TOKEN) : createLogPushSender(),
+});
+const overdueService = createOverdueService(db);
+
 const app = createApp(config, {
+  notificationService,
   verifyToken: tokenVerifierFromConfig(config),
   accountService: createAccountService(
     createAccountRepository(db, async (userId) => {
@@ -75,6 +88,7 @@ const app = createApp(config, {
     config,
   }),
   documentService: createDocumentService({
+    afterNotify: notificationService.kick,
     db,
     invoices: invoiceService,
     businesses: businessRepo,
@@ -84,12 +98,32 @@ const app = createApp(config, {
   }),
 });
 
+// Background jobs. Hourly overdue sweep (each business flips at its own local midnight) and a
+// 30-second push retry loop. Both are safe to run in several instances at once.
+const stopJobs = startSchedulers([
+  {
+    name: 'overdue-sweep',
+    everyMs: 60 * 60_000,
+    initialDelayMs: 30_000,
+    run: async () => {
+      if ((await overdueService.sweep()) > 0) notificationService.kick();
+    },
+  },
+  {
+    name: 'push-dispatch',
+    everyMs: 30_000,
+    initialDelayMs: 10_000,
+    run: () => notificationService.dispatchPending(),
+  },
+]);
+
 const server = app.listen(config.PORT, () => {
   console.log(`InvoiceFlow API listening on :${config.PORT} (${config.NODE_ENV})`);
 });
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
+    stopJobs();
     server.close(() => void pool.end().then(() => process.exit(0)));
   });
 }

@@ -92,6 +92,20 @@ charge* (the platform account creates the PaymentIntent and transfers to the fre
 Stripe's fees on destination charges are paid by the platform account, so set `PLATFORM_FEE_BPS` high enough
 to cover them if you want to break even.
 
+## Push notifications
+
+The app registers its Expo push token after sign-in; the API queues a notification for each event (invoice
+sent, viewed, paid, partial payment, payment failed, overdue) and delivers it through Expo's push service.
+
+1. Run `eas init` (creates the EAS project) and set `EXPO_PUBLIC_EAS_PROJECT_ID` in `mobile/.env`.
+2. Push needs a **physical device and a development/production build** (not Expo Go, not a simulator).
+   Configure credentials with EAS: an APNs key for iOS and FCM v1 credentials for Android
+   (`eas credentials`).
+3. On the API set `PUSH_ENABLED=true` (default in production). Without it pushes are only logged.
+4. The API runs two background jobs on its own: an hourly **overdue sweep** and a 30-second **push
+   retry loop**. Both are safe to run in several instances at once.
+5. Test a token by sending to it from <https://expo.dev/notifications>.
+
 ## Environment variables
 
 See `api/.env.example` and `mobile/.env.example`. The Supabase **service-role key** and Stripe **secret
@@ -101,5 +115,5 @@ key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and any
 
 Phases 1 (architecture, schema, money library, CI), 2 (authentication), 3 (business profile,
 customers, products, tab navigation), 4 (invoices), 5 (preview, PDF, email/share, public invoice
-page) and 6 (Stripe payments) are complete. Next: Phase 7, notifications and the overdue job.
-The dashboard shows placeholder numbers until Phase 8.
+page), 6 (Stripe payments) and 7 (push notifications, overdue job, activity timeline) are complete.
+Next: Phase 8, the dashboard, search polish and seed data.

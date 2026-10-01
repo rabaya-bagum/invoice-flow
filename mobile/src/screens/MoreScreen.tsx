@@ -1,13 +1,20 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { View } from 'react-native';
+import { useNotifications } from '../hooks/queries';
 import { Row } from '../components/Row';
 import type { MoreStackParams } from '../navigation/types';
 import { useTheme } from '../theme/useTheme';
 
 export function MoreScreen({ navigation }: NativeStackScreenProps<MoreStackParams, 'More'>) {
   const c = useTheme();
+  const unread = useNotifications().data?.unread ?? 0;
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
+      <Row
+        title={unread > 0 ? `Notifications (${unread})` : 'Notifications'}
+        subtitle="Invoice activity"
+        onPress={() => navigation.navigate('Notifications')}
+      />
       <Row
         title="Business profile"
         subtitle="Name, address, tax and defaults"

@@ -128,6 +128,8 @@ export function AuthProvider({ services, children }: { services: Services; child
   }, [services]);
 
   const signOut = useCallback(async () => {
+    // Unregister this device first: the API call needs the session that signOut is about to end.
+    await services.push.unregister().catch(() => undefined);
     try {
       await services.auth.signOut();
     } finally {

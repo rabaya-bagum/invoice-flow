@@ -30,6 +30,10 @@ const schema = z.object({
   PAYMENT_INTENT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
   /** Contents of Stripe's Apple Pay domain association file, served at /.well-known/. */
   APPLE_PAY_DOMAIN_ASSOCIATION: z.string().min(1).optional(),
+  /** Send real push notifications through Expo. Defaults to on in production, off elsewhere (logged only). */
+  PUSH_ENABLED: z.enum(['true', 'false']).optional(),
+  /** Optional Expo access token (needed only if "enhanced push security" is enabled in your Expo account). */
+  EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
   /** Comma-separated list of allowed browser origins (the public pay page). */
   CORS_ORIGINS: z
     .string()

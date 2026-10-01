@@ -52,10 +52,14 @@ export function createPaymentController(svc: PaymentService) {
 }
 
 /** Stripe -> us. Needs the RAW body for signature verification (mounted before express.json). */
-export function createWebhookHandler(svc: PaymentService) {
+export function createWebhookHandler(
+  svc: PaymentService,
+  afterCommit: () => void = () => undefined,
+) {
   return async (req: Request, res: Response) => {
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
     const out = await svc.handleWebhook(raw, req.header('stripe-signature'));
+    if (!out.duplicate) afterCommit(); // push the owner notification right away
     res.json({ received: true, duplicate: out.duplicate });
   };
 }

@@ -149,6 +149,31 @@
   verification uses the real SDK. Run an end-to-end test in Stripe test mode (including Apple Pay on a real device
   and domain) before launch.
 
+## Notifications, overdue job, timeline (Phase 7)
+- **Outbox:** every event writes a `notifications` row in the same transaction as the event itself; delivery is a
+  separate step (`push_sent_at` is null until delivered or deliberately skipped). A push outage therefore can
+  never roll back a payment or a send. Rows are claimed with `FOR UPDATE SKIP LOCKED`, so parallel dispatchers
+  never send twice. After a commit the API "kicks" a dispatch for promptness; a 30 s loop retries failures.
+- **Retries:** a provider outage leaves rows queued (attempts counted); after 5 attempts a row is marked as given
+  up. Expo's `DeviceNotRegistered` deletes that device token. No registered device is not an error (row is marked
+  `no_devices`).
+- **Who gets pushed:** the business owner's devices only (`push_tokens` -> `business_profiles.owner_id`). A device
+  token belongs to whoever registered it last, and the app unregisters it on sign-out (before the session ends).
+  There are no per-event preference toggles yet, only one on/off switch per device.
+- **Content:** exactly the required wording where specified ("Invoice INV-0034 has been viewed by John Smith.",
+  "Payment of $1,250.00 received for INV-0034."). Messages carry only the invoice id and notification id as data;
+  tapping opens the invoice (also on cold start).
+- **Overdue job:** hourly, per business timezone, using the same overdue rule as the list filter. It claims and
+  flags invoices in one statement and notifies **once per due date** (`overdue_notified_due_date`); changing the
+  due date to another past date notifies again. It also writes an `overdue` activity entry. Idempotent across
+  instances and restarts. It does not email customers (no reminder emails yet).
+- **Timeline:** the History tab groups activity by day with local time, an icon per event type, and readable
+  fallbacks for unknown types. Activity rows use `clock_timestamp()` so events in one transaction keep their order.
+- **Not built:** notification preferences per event type, badge counts, silent/background updates, and checking
+  Expo push receipts (only the immediate ticket result is used).
+- **Not verified on a device:** permission prompts, token registration, delivery and tap-to-open need a physical
+  device with an EAS build; tests mock the native modules and the Expo service.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

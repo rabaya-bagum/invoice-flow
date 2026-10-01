@@ -143,3 +143,19 @@ export interface ConnectStatus {
   detailsSubmitted: boolean;
   requirementsDue: string[];
 }
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  data: { invoiceId?: string; paymentId?: string; [k: string]: unknown };
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationPage {
+  items: AppNotification[];
+  total: number;
+  unread: number;
+}
