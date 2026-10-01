@@ -40,7 +40,7 @@ export async function run(argv: string[], databaseUrl: string | undefined): Prom
     if (!row) throw new SeedError(`No account with email ${args.email}. Sign up in the app first.`);
     if (args.reset) await resetBusinessData(db, row.business_id);
     const s = await seedDemoData(db, { businessId: row.business_id, userId: row.user_id });
-    return `Seeded ${s.customers} customers, ${s.products} products, ${s.invoices} invoices and ${s.payments} payments for ${args.email}.`;
+    return `Seeded ${s.customers} customers, ${s.products} products, ${s.invoices} invoices, ${s.estimates} estimates and ${s.payments} payments for ${args.email}.`;
   } finally {
     await pool.end();
   }

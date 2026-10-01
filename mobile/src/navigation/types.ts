@@ -17,6 +17,9 @@ export type InvoicesStackParams = {
   InvoiceList: { status?: 'draft' | 'sent' | 'viewed' | 'paid' | 'overdue' } | undefined;
   Invoice: { id?: string } | undefined;
   SendInvoice: { id: string };
+  EstimateList: undefined;
+  Estimate: { id?: string } | undefined;
+  SendEstimate: { id: string };
 };
 
 export type PaymentsStackParams = {

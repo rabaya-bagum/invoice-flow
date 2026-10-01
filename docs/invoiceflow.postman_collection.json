@@ -58,12 +58,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/health",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "health"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["health"],
               "variable": [],
               "query": []
             },
@@ -82,13 +78,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/me",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "me"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "me"],
               "variable": [],
               "query": []
             },
@@ -107,13 +98,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/me",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "me"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "me"],
               "variable": [],
               "query": []
             },
@@ -136,13 +122,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/dashboard",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "dashboard"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "dashboard"],
               "variable": [],
               "query": [
                 {
@@ -167,13 +148,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/business",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "business"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "business"],
               "variable": [],
               "query": []
             },
@@ -192,13 +168,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/business",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "business"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "business"],
               "variable": [],
               "query": []
             },
@@ -216,14 +187,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/business/:kind",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "business",
-                ":kind"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "business", ":kind"],
               "variable": [
                 {
                   "key": "kind",
@@ -242,14 +207,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/business/:kind",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "business",
-                ":kind"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "business", ":kind"],
               "variable": [
                 {
                   "key": "kind",
@@ -268,14 +227,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/business/:kind",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "business",
-                ":kind"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "business", ":kind"],
               "variable": [
                 {
                   "key": "kind",
@@ -299,13 +252,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/customers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "customers"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers"],
               "variable": [],
               "query": [
                 {
@@ -340,13 +288,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/customers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "customers"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers"],
               "variable": [],
               "query": []
             },
@@ -364,14 +307,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/customers/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "customers",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -395,14 +332,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/customers/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "customers",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -425,14 +356,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/customers/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "customers",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -451,15 +376,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/customers/:id/invoices",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "customers",
-                ":id",
-                "invoices"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "customers", ":id", "invoices"],
               "variable": [
                 {
                   "key": "id",
@@ -514,13 +432,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/products",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "products"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products"],
               "variable": [],
               "query": [
                 {
@@ -565,13 +478,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/products",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "products"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products"],
               "variable": [],
               "query": []
             },
@@ -589,14 +497,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/products/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "products",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -620,14 +522,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/products/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "products",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -650,14 +546,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/products/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "products",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "products", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -681,13 +571,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/tax-rates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "tax-rates"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tax-rates"],
               "variable": [],
               "query": []
             },
@@ -706,13 +591,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/tax-rates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "tax-rates"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tax-rates"],
               "variable": [],
               "query": []
             },
@@ -735,14 +615,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/tax-rates/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "tax-rates",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tax-rates", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -765,14 +639,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/tax-rates/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "tax-rates",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "tax-rates", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -796,13 +664,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices"],
               "variable": [],
               "query": [
                 {
@@ -857,13 +720,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices"],
               "variable": [],
               "query": []
             },
@@ -881,14 +739,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -912,14 +764,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -942,14 +788,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -973,15 +813,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id/transition",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id",
-                "transition"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id", "transition"],
               "variable": [
                 {
                   "key": "id",
@@ -1004,15 +837,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id/activity",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id",
-                "activity"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id", "activity"],
               "variable": [
                 {
                   "key": "id",
@@ -1036,13 +862,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates"],
               "variable": [],
               "query": [
                 {
@@ -1097,13 +918,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates"],
               "variable": [],
               "query": []
             },
@@ -1121,14 +937,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -1152,14 +962,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -1182,14 +986,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -1213,15 +1011,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates/:id/transition",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates",
-                ":id",
-                "transition"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id", "transition"],
               "variable": [
                 {
                   "key": "id",
@@ -1244,15 +1035,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates/:id/convert",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates",
-                ":id",
-                "convert"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id", "convert"],
               "variable": [
                 {
                   "key": "id",
@@ -1271,15 +1055,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates/:id/pdf",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates",
-                ":id",
-                "pdf"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id", "pdf"],
               "variable": [
                 {
                   "key": "id",
@@ -1303,15 +1080,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/estimates/:id/send",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "estimates",
-                ":id",
-                "send"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id", "send"],
               "variable": [
                 {
                   "key": "id",
@@ -1339,15 +1109,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id/pdf",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id",
-                "pdf"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id", "pdf"],
               "variable": [
                 {
                   "key": "id",
@@ -1371,15 +1134,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id/send",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id",
-                "send"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id", "send"],
               "variable": [
                 {
                   "key": "id",
@@ -1402,15 +1158,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id/share-link",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id",
-                "share-link"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id", "share-link"],
               "variable": [
                 {
                   "key": "id",
@@ -1429,15 +1178,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/invoices/:id/share-link",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "invoices",
-                ":id",
-                "share-link"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invoices", ":id", "share-link"],
               "variable": [
                 {
                   "key": "id",
@@ -1461,15 +1203,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/payments/connect/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "payments",
-                "connect",
-                "status"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "payments", "connect", "status"],
               "variable": [],
               "query": []
             },
@@ -1483,15 +1218,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/payments/connect/onboard",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "payments",
-                "connect",
-                "onboard"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "payments", "connect", "onboard"],
               "variable": [],
               "query": []
             },
@@ -1510,14 +1238,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/payments/create-intent",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "payments",
-                "create-intent"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "payments", "create-intent"],
               "variable": [],
               "query": []
             },
@@ -1535,13 +1257,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/payments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "payments"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "payments"],
               "variable": [],
               "query": [
                 {
@@ -1576,14 +1293,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/payments/:id",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "payments",
-                ":id"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "payments", ":id"],
               "variable": [
                 {
                   "key": "id",
@@ -1607,15 +1318,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/payments/:id/refund",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "payments",
-                ":id",
-                "refund"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "payments", ":id", "refund"],
               "variable": [
                 {
                   "key": "id",
@@ -1643,13 +1347,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/notifications",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "notifications"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "notifications"],
               "variable": [],
               "query": []
             },
@@ -1663,14 +1362,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/notifications/read-all",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "notifications",
-                "read-all"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "notifications", "read-all"],
               "variable": [],
               "query": []
             },
@@ -1684,15 +1377,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/v1/notifications/:id/read",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "notifications",
-                ":id",
-                "read"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "notifications", ":id", "read"],
               "variable": [
                 {
                   "key": "id",
@@ -1716,13 +1402,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/push-tokens",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "push-tokens"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "push-tokens"],
               "variable": [],
               "query": []
             },
@@ -1745,13 +1426,8 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/push-tokens",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "push-tokens"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "push-tokens"],
               "variable": [],
               "query": []
             },
@@ -1777,14 +1453,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/v1/payments/webhook",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "v1",
-                "payments",
-                "webhook"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "payments", "webhook"],
               "variable": [],
               "query": []
             },
@@ -1806,13 +1476,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/pay/:token",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "pay",
-                ":token"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["pay", ":token"],
               "variable": [
                 {
                   "key": "token",
@@ -1834,14 +1499,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/public/invoices/:token",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "public",
-                "invoices",
-                ":token"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "invoices", ":token"],
               "variable": [
                 {
                   "key": "token",
@@ -1863,15 +1522,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/public/invoices/:token/pdf",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "public",
-                "invoices",
-                ":token",
-                "pdf"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "invoices", ":token", "pdf"],
               "variable": [
                 {
                   "key": "token",
@@ -1893,15 +1545,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/public/invoices/:token/view",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "public",
-                "invoices",
-                ":token",
-                "view"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "invoices", ":token", "view"],
               "variable": [
                 {
                   "key": "token",
@@ -1923,15 +1568,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/public/invoices/:token/payment-intent",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "public",
-                "invoices",
-                ":token",
-                "payment-intent"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "invoices", ":token", "payment-intent"],
               "variable": [
                 {
                   "key": "token",
@@ -1953,14 +1591,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/stripe/connect/return",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "stripe",
-                "connect",
-                "return"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["stripe", "connect", "return"],
               "variable": [],
               "query": []
             },
@@ -1977,14 +1609,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/stripe/connect/refresh",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "stripe",
-                "connect",
-                "refresh"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["stripe", "connect", "refresh"],
               "variable": [],
               "query": []
             },
@@ -2001,13 +1627,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/.well-known/apple-developer-merchantid-domain-association",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                ".well-known",
-                "apple-developer-merchantid-domain-association"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": [".well-known", "apple-developer-merchantid-domain-association"],
               "variable": [],
               "query": []
             },

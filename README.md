@@ -132,8 +132,8 @@ eas build --profile preview --platform all
 
 ## End-to-end flows (Maestro)
 
-`mobile/.maestro/` holds three device flows: sign in, dashboard cards and quick-create menu, and
-creating a customer then an invoice. They need a development build on a simulator/emulator and a
+`mobile/.maestro/` holds four device flows: sign in, dashboard cards and quick-create menu, and
+creating a customer then an invoice, and estimate to invoice. They need a development build on a simulator/emulator and a
 verified test account (seed it first; see below):
 
 ```bash
@@ -147,7 +147,7 @@ They have **not been run** in this build environment (no device). A Jest test
 ## Demo data
 
 Sign up in the app first, then fill that account with 5 customers, 10 products/services and 20
-invoices (draft, sent, viewed, paid, partially paid, overdue; one in EUR):
+invoices (draft, sent, viewed, paid, partially paid, overdue; one in EUR) and 4 estimates:
 
 ```bash
 export DATABASE_URL=postgresql://...        # the same connection string the API uses
@@ -173,6 +173,8 @@ quick-create menu, demo seed data) and 9 (security review, isolation/abuse tests
 complete. See `docs/SECURITY.md` for the review and what it does not cover.
 Phase 10 (launch readiness) adds EAS build profiles, an OpenAPI spec and Postman collection, and the
 launch checklist, store listing draft and privacy policy template under `docs/`.
-Not built yet (v1.1): estimates, offline drafts with sync, invoice template customization UI.
+Phase 11 adds estimates: create, send (PDF by email), record accepted/declined, and convert to a draft
+invoice. Not built yet (v1.1): offline drafts with sync, invoice template customization UI, a
+customer-facing estimate page where the customer accepts online.
 Nothing has been run against real Apple/Google/Stripe/Resend/Expo accounts; start with
 `docs/LAUNCH_CHECKLIST.md`.

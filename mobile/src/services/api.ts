@@ -1,4 +1,9 @@
-import type { InvoiceWriteInput, SendInvoiceInput, TaxRateInput } from '@invoiceflow/shared';
+import type {
+  EstimateWriteInput,
+  InvoiceWriteInput,
+  SendInvoiceInput,
+  TaxRateInput,
+} from '@invoiceflow/shared';
 import { bytesToBase64 } from '../utils/base64';
 import type {
   ActivityEntry,
@@ -11,6 +16,8 @@ import type {
   Invoice,
   Dashboard,
   DashboardPeriod,
+  Estimate,
+  EstimateSummary,
   InvoiceSummary,
   NotificationPage,
   Page,
@@ -109,6 +116,29 @@ export function createApiClient(opts: ApiClientOptions) {
 
   return {
     getMe: () => request<MeResponse>('/v1/me'),
+    listEstimates: (p: InvoiceListParams) =>
+      request<Page<EstimateSummary>>(`/v1/estimates${qs({ ...p })}`),
+    getEstimate: (id: string) => request<Estimate>(`/v1/estimates/${id}`),
+    createEstimate: (input: EstimateWriteInput) =>
+      request<Estimate>('/v1/estimates', body('POST', input)),
+    updateEstimate: (id: string, input: EstimateWriteInput) =>
+      request<Estimate>(`/v1/estimates/${id}`, body('PUT', input)),
+    deleteEstimate: (id: string) => request<void>(`/v1/estimates/${id}`, { method: 'DELETE' }),
+    transitionEstimate: (id: string, to: 'sent' | 'accepted' | 'rejected') =>
+      request<Estimate>(`/v1/estimates/${id}/transition`, body('POST', { to })),
+    convertEstimate: (id: string) =>
+      request<{ estimate: Estimate; invoice: Invoice }>(`/v1/estimates/${id}/convert`, {
+        method: 'POST',
+      }),
+    sendEstimate: (id: string, input: SendInvoiceInput) =>
+      request<{ estimate: Estimate; sentTo: string }>(
+        `/v1/estimates/${id}/send`,
+        body('POST', input),
+      ),
+    downloadEstimatePdf: async (id: string) =>
+      new Uint8Array(
+        await (await execute(`/v1/estimates/${id}/pdf`, { method: 'POST' })).arrayBuffer(),
+      ),
     getDashboard: (period: DashboardPeriod = 'all') =>
       request<Dashboard>(`/v1/dashboard${qs({ period })}`),
     deleteAccount: () => request<void>('/v1/me', body('DELETE', { confirm: 'DELETE' })),

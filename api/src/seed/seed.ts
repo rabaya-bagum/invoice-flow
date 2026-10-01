@@ -3,10 +3,11 @@ import type { Database } from '../db';
 import { createCustomerRepository } from '../repositories/customer-repository';
 import { createProductRepository } from '../repositories/product-repository';
 import { createTaxRateRepository } from '../repositories/tax-rate-repository';
+import { createEstimateService } from '../services/estimate-service';
 import { createInvoiceService, type Actor } from '../services/invoice-service';
 
 /** The demo shape: what a tester sees after `pnpm seed`. Counts are asserted by tests. */
-export const SEED_COUNTS = { customers: 5, products: 10, invoices: 20 } as const;
+export const SEED_COUNTS = { customers: 5, products: 10, invoices: 20, estimates: 4 } as const;
 
 const customerSeeds = [
   {
@@ -191,6 +192,31 @@ const invoiceSeeds: InvoiceSeed[] = [
   { customer: 3, status: 'draft', issue: 0, due: 14, items: [[8, 1_000]] },
 ];
 
+interface EstimateSeed {
+  customer: number;
+  /** What the owner has done with it; "expired" is a sent estimate whose date has passed. */
+  state: 'draft' | 'sent' | 'accepted' | 'expired';
+  issue: number;
+  expiry: number;
+  items: [number, number][];
+}
+
+const estimateSeeds: EstimateSeed[] = [
+  {
+    customer: 3,
+    state: 'draft',
+    issue: 0,
+    expiry: 30,
+    items: [
+      [3, 1_000],
+      [4, 3_000],
+    ],
+  },
+  { customer: 0, state: 'sent', issue: -5, expiry: 25, items: [[2, 40_000]] },
+  { customer: 4, state: 'accepted', issue: -12, expiry: 18, items: [[6, 10_000]] },
+  { customer: 2, state: 'expired', issue: -50, expiry: -20, items: [[1, 6_000]] },
+];
+
 export class SeedError extends Error {}
 
 const dayStr = (businessToday: Date, offset: number) => {
@@ -202,6 +228,7 @@ export interface SeedSummary {
   customers: number;
   products: number;
   invoices: number;
+  estimates: number;
   payments: number;
   byStatus: Record<Display, number>;
 }
@@ -219,7 +246,8 @@ export async function seedDemoData(
   const existing = await db.query<{ n: string }>(
     `SELECT (SELECT count(*) FROM customers WHERE business_id = $1)
           + (SELECT count(*) FROM products WHERE business_id = $1)
-          + (SELECT count(*) FROM invoices WHERE business_id = $1) AS n`,
+          + (SELECT count(*) FROM invoices WHERE business_id = $1)
+          + (SELECT count(*) FROM estimates WHERE business_id = $1) AS n`,
     [businessId],
   );
   if (Number(existing.rows[0]?.n) > 0) {
@@ -369,10 +397,37 @@ export async function seedDemoData(
     }
   }
 
+  const estimates = createEstimateService(db as Database, invoices);
+  for (const s of estimateSeeds) {
+    const created = await estimates.create(actor, {
+      customerId: customerIds[s.customer]!,
+      number: null,
+      issueDate: dayStr(base, s.issue),
+      expiryDate: dayStr(base, s.expiry),
+      currency: defaultCurrency as CurrencyCode,
+      taxInclusive: false,
+      discount: null,
+      feesMinor: 0,
+      notes: null,
+      terms: 'This estimate is valid until the date shown.',
+      items: s.items.map(([p, quantityMilli]) => ({
+        productId: productIds[p]!,
+        description: productSeeds[p]![0],
+        quantityMilli,
+        unitPriceMinor: productSeeds[p]![1],
+        taxes: [{ name: 'GST', rateBps: GST }],
+      })),
+    });
+    if (s.state === 'draft') continue;
+    await estimates.transition(actor, created.id, 'sent');
+    if (s.state === 'accepted') await estimates.transition(actor, created.id, 'accepted');
+  }
+
   return {
     customers: customerSeeds.length,
     products: productSeeds.length,
     invoices: invoiceSeeds.length,
+    estimates: estimateSeeds.length,
     payments,
     byStatus,
   };
@@ -384,6 +439,8 @@ export async function resetBusinessData(db: Database, businessId: string): Promi
     for (const table of [
       'notifications',
       'payments',
+      'estimate_items',
+      'estimates',
       'invoice_activity',
       'invoice_items',
       'invoices',

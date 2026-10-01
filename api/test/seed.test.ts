@@ -26,6 +26,13 @@ describe('demo seed', () => {
   it('creates 5 customers, 10 products and 20 invoices covering every status', async () => {
     const { summary, get } = await seeded();
     expect(summary).toMatchObject({ ...SEED_COUNTS });
+    const est = (await get('/v1/estimates?limit=100')).body.items as { displayStatus: string }[];
+    expect(est.map((e) => e.displayStatus).sort()).toEqual([
+      'accepted',
+      'draft',
+      'expired',
+      'sent',
+    ]);
     expect(summary.byStatus).toEqual({
       draft: 3,
       sent: 4,

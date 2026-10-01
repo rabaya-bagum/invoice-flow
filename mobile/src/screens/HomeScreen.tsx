@@ -36,6 +36,7 @@ export function HomeScreen() {
   const openInvoices = (status?: string) =>
     navigation.navigate('InvoicesTab', { screen: 'InvoiceList', params: { status } });
   const newInvoice = () => navigation.navigate('InvoicesTab', { screen: 'Invoice' });
+  const newEstimate = () => navigation.navigate('InvoicesTab', { screen: 'Estimate' });
   const newCustomer = () => navigation.navigate('CustomersTab', { screen: 'CustomerForm' });
 
   const d = q.data;
@@ -150,6 +151,7 @@ export function HomeScreen() {
       <QuickCreateFab
         actions={[
           { label: 'New invoice', icon: 'document-text-outline', onPress: newInvoice },
+          { label: 'New estimate', icon: 'clipboard-outline', onPress: newEstimate },
           { label: 'New customer', icon: 'person-add-outline', onPress: newCustomer },
         ]}
       />

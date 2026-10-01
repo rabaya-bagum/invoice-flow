@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { View } from 'react-native';
 import { useNotifications } from '../hooks/queries';
@@ -7,6 +8,7 @@ import { useTheme } from '../theme/useTheme';
 
 export function MoreScreen({ navigation }: NativeStackScreenProps<MoreStackParams, 'More'>) {
   const c = useTheme();
+  const root = useNavigation<{ navigate: (tab: string, p: object) => void }>();
   const unread = useNotifications().data?.unread ?? 0;
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
@@ -19,6 +21,11 @@ export function MoreScreen({ navigation }: NativeStackScreenProps<MoreStackParam
         title="Business profile"
         subtitle="Name, address, tax and defaults"
         onPress={() => navigation.navigate('BusinessProfile')}
+      />
+      <Row
+        title="Estimates"
+        subtitle="Quotes you can turn into invoices"
+        onPress={() => root.navigate('InvoicesTab', { screen: 'EstimateList' })}
       />
       <Row
         title="Products & services"

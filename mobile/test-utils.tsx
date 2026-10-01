@@ -104,3 +104,51 @@ export const invoiceDetail = (over: Record<string, unknown> = {}) => ({
   ],
   ...over,
 });
+
+export const estimateSummary = (over: Record<string, unknown> = {}) => ({
+  id: 'e1',
+  number: 'EST-0001',
+  status: 'draft',
+  displayStatus: 'draft',
+  customerId: CUSTOMER_ID,
+  customerName: 'Acme Ltd',
+  issueDate: '2026-10-01',
+  expiryDate: '2026-10-31',
+  currency: 'USD',
+  totalMinor: 105_000,
+  convertedInvoiceId: null,
+  updatedAt: '',
+  ...over,
+});
+
+export const estimateDetail = (over: Record<string, unknown> = {}) => ({
+  ...estimateSummary(),
+  customerEmail: 'billing@acme.test',
+  taxInclusive: false,
+  discountType: null,
+  discountValue: null,
+  feesMinor: 0,
+  subtotalMinor: 100_000,
+  discountTotalMinor: 0,
+  taxTotalMinor: 5_000,
+  notes: null,
+  terms: null,
+  version: 2,
+  editable: true,
+  convertible: true,
+  taxBreakdown: [{ name: 'GST', rateBps: 500, taxableAmount: 100_000, tax: 5_000 }],
+  items: [
+    {
+      id: 'it1',
+      productId: null,
+      description: 'Web Development',
+      quantityMilli: 10_000,
+      unitPriceMinor: 10_000,
+      taxes: [{ name: 'GST', rateBps: 500 }],
+      lineTotalMinor: 100_000,
+      discountMinor: 0,
+      taxMinor: 5_000,
+    },
+  ],
+  ...over,
+});

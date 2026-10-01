@@ -167,6 +167,9 @@ describe('HomeScreen dashboard', () => {
     await fireEvent.press(screen.getByLabelText('New customer'));
     expect(mockNavigate).toHaveBeenCalledWith('CustomersTab', { screen: 'CustomerForm' });
     await fireEvent.press(screen.getByLabelText('Quick create'));
+    await fireEvent.press(screen.getByLabelText('New estimate'));
+    expect(mockNavigate).toHaveBeenLastCalledWith('InvoicesTab', { screen: 'Estimate' });
+    await fireEvent.press(screen.getByLabelText('Quick create'));
     await fireEvent.press(screen.getByLabelText('New invoice'));
     expect(mockNavigate).toHaveBeenLastCalledWith('InvoicesTab', { screen: 'Invoice' });
   });

@@ -183,3 +183,39 @@ export interface Dashboard {
   recentInvoices: InvoiceSummary[];
   recentPayments: Payment[];
 }
+
+export type EstimateStatus = import('@invoiceflow/shared').EstimateStatus;
+export type EstimateDisplayStatus = import('@invoiceflow/shared').EstimateDisplayStatus;
+
+export interface EstimateSummary {
+  id: string;
+  number: string;
+  status: EstimateStatus;
+  displayStatus: EstimateDisplayStatus;
+  customerId: string;
+  customerName: string;
+  issueDate: string;
+  expiryDate: string;
+  currency: string;
+  totalMinor: number;
+  convertedInvoiceId: string | null;
+  updatedAt: string;
+}
+
+export interface Estimate extends EstimateSummary {
+  customerEmail: string | null;
+  taxInclusive: boolean;
+  discountType: 'percent' | 'fixed' | null;
+  discountValue: number | null;
+  feesMinor: number;
+  subtotalMinor: number;
+  discountTotalMinor: number;
+  taxTotalMinor: number;
+  notes: string | null;
+  terms: string | null;
+  version: number;
+  items: InvoiceItem[];
+  taxBreakdown: Array<{ name: string; rateBps: number; taxableAmount: number; tax: number }>;
+  editable: boolean;
+  convertible: boolean;
+}

@@ -3,7 +3,10 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BusinessProfileScreen } from '../screens/BusinessProfileScreen';
+import { EstimateListScreen } from '../screens/EstimateListScreen';
+import { EstimateScreen } from '../screens/EstimateScreen';
 import { InvoiceListScreen } from '../screens/InvoiceListScreen';
+import { SendEstimateScreen } from '../screens/SendEstimateScreen';
 import { InvoiceScreen } from '../screens/InvoiceScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { OnlinePaymentsScreen } from '../screens/OnlinePaymentsScreen';
@@ -67,6 +70,21 @@ function InvoicesStack() {
         name="SendInvoice"
         component={SendInvoiceScreen}
         options={{ title: 'Send invoice' }}
+      />
+      <Invoices.Screen
+        name="EstimateList"
+        component={EstimateListScreen}
+        options={{ title: 'Estimates' }}
+      />
+      <Invoices.Screen
+        name="Estimate"
+        component={EstimateScreen}
+        options={({ route }) => ({ title: route.params?.id ? 'Estimate' : 'New estimate' })}
+      />
+      <Invoices.Screen
+        name="SendEstimate"
+        component={SendEstimateScreen}
+        options={{ title: 'Send estimate' }}
       />
     </Invoices.Navigator>
   );

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import type { DisplayStatus } from '../models';
+import type { DisplayStatus, EstimateDisplayStatus } from '../models';
 
-const LABELS: Record<DisplayStatus, string> = {
+const LABELS: Record<DisplayStatus | EstimateDisplayStatus, string> = {
   draft: 'Draft',
   sent: 'Sent',
   viewed: 'Viewed',
@@ -10,9 +10,12 @@ const LABELS: Record<DisplayStatus, string> = {
   overdue: 'Overdue',
   cancelled: 'Cancelled',
   refunded: 'Refunded',
+  accepted: 'Accepted',
+  rejected: 'Declined',
+  expired: 'Expired',
 };
 
-const COLORS: Record<DisplayStatus, string> = {
+const COLORS: Record<DisplayStatus | EstimateDisplayStatus, string> = {
   draft: '#64748B',
   sent: '#2563EB',
   viewed: '#7C3AED',
@@ -21,10 +24,13 @@ const COLORS: Record<DisplayStatus, string> = {
   overdue: '#DC2626',
   cancelled: '#6B7280',
   refunded: '#0E7490',
+  accepted: '#15803D',
+  rejected: '#B91C1C',
+  expired: '#9A3412',
 };
 
 /** Always shows a text label, so status never depends on colour alone. */
-export function StatusBadge({ status }: { status: DisplayStatus }) {
+export function StatusBadge({ status }: { status: DisplayStatus | EstimateDisplayStatus }) {
   const color = COLORS[status] ?? COLORS.draft;
   return (
     <View style={[styles.badge, { borderColor: color, backgroundColor: `${color}1A` }]}>

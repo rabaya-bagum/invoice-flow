@@ -1,8 +1,8 @@
 import { formatPercent, isSupportedCurrency, minorToDecimalString } from '@invoiceflow/shared';
 import { useMemo, useState } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
-import { useBusiness, useSaveInvoice, useTaxRates } from '../hooks/queries';
-import type { Invoice, Product } from '../models';
+import { useBusiness, useSaveEstimate, useSaveInvoice, useTaxRates } from '../hooks/queries';
+import type { Product } from '../models';
 import { ApiError } from '../services/api';
 import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
@@ -26,14 +26,18 @@ import { TotalsCard } from './TotalsCard';
 interface Props {
   initial: InvoiceForm;
   invoiceId?: string;
-  onSaved: (invoice: Invoice) => void;
+  onSaved: (saved: { id: string }) => void;
+  /** Estimates share this form: "Valid until" replaces the due date and a different endpoint is used. */
+  kind?: 'invoice' | 'estimate';
 }
 
-export function InvoiceFormView({ initial, invoiceId, onSaved }: Props) {
+export function InvoiceFormView({ initial, invoiceId, onSaved, kind = 'invoice' }: Props) {
+  const estimate = kind === 'estimate';
   const c = useTheme();
   const business = useBusiness();
   const taxRates = useTaxRates();
-  const save = useSaveInvoice(invoiceId);
+  const saveInvoice = useSaveInvoice(invoiceId);
+  const saveEstimate = useSaveEstimate(invoiceId);
   const [form, setForm] = useState<InvoiceForm>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -90,7 +94,12 @@ export function InvoiceFormView({ initial, invoiceId, onSaved }: Props) {
     if (!payload) return;
     setSaving(true);
     try {
-      onSaved(await save.mutateAsync(payload));
+      if (estimate) {
+        const { dueDate, ...rest } = payload;
+        onSaved(await saveEstimate.mutateAsync({ ...rest, expiryDate: dueDate }));
+      } else {
+        onSaved(await saveInvoice.mutateAsync(payload));
+      }
     } catch (err) {
       const code = err instanceof ApiError ? err.code : undefined;
       if (code === 'NUMBER_EXISTS') setErrors({ number: friendlyMessage(err) });
@@ -118,7 +127,7 @@ export function InvoiceFormView({ initial, invoiceId, onSaved }: Props) {
       </View>
 
       <TextField
-        label="Invoice number"
+        label={estimate ? 'Estimate number' : 'Invoice number'}
         value={form.number}
         onChangeText={(v) => set('number', v)}
         error={errors.number}
@@ -132,13 +141,13 @@ export function InvoiceFormView({ initial, invoiceId, onSaved }: Props) {
         error={errors.issueDate}
       />
       <DateField
-        label="Due date"
+        label={estimate ? 'Valid until' : 'Due date'}
         value={form.dueDate}
         onChange={(v) => set('dueDate', v)}
         error={errors.dueDate}
       />
       {form.dueDate < form.issueDate ? (
-        <Message kind="info">The due date is before the issue date. You can still save.</Message>
+        <Message kind="info">{`The ${estimate ? 'expiry' : 'due'} date is before the issue date. You can still save.`}</Message>
       ) : null}
       <TextField
         label="Currency (ISO code)"
@@ -297,7 +306,7 @@ export function InvoiceFormView({ initial, invoiceId, onSaved }: Props) {
       />
 
       <Button
-        title={invoiceId ? 'Save changes' : 'Create invoice'}
+        title={invoiceId ? 'Save changes' : estimate ? 'Create estimate' : 'Create invoice'}
         onPress={onSave}
         loading={saving}
       />

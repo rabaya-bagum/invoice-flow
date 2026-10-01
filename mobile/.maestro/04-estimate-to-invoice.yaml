@@ -1,0 +1,19 @@
+appId: com.invoiceflow.app
+name: Create an estimate, accept it and convert it to an invoice
+---
+- launchApp
+- tapOn: 'Quick create'
+- tapOn: 'New estimate'
+- tapOn: 'Choose customer'
+- tapOn: 'Maestro Test Co'
+- tapOn: 'Item 1 description'
+- inputText: 'Site survey'
+- tapOn: 'Item 1 unit price'
+- inputText: '300'
+- tapOn: 'Create estimate'
+- assertVisible: 'EST-.*'
+- tapOn: 'Mark as sent'
+- tapOn: 'Mark accepted'
+- tapOn: 'Convert to invoice'
+- tapOn: 'Convert'
+- assertVisible: 'Mark as sent'

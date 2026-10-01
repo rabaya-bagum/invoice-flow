@@ -221,6 +221,31 @@
   page gets its key from the API). It was removed; a test now keeps the file in step with the code.
 - The privacy policy and store answers are drafts from what the code does, not legal advice.
 
+## Estimates (Phase 11)
+- An estimate prices exactly like an invoice (same shared calculator, same line/discount/tax rules);
+  `dueDate` becomes `expiryDate`. Numbering is a separate `EST-0001` sequence (the schema already had
+  one per business and kind).
+- Statuses: draft -> sent -> accepted | declined(`rejected` in the API). `viewed` exists in the enum but
+  nothing sets it yet because there is no customer-facing estimate page. **The owner records the
+  customer's decision by hand** ("Mark accepted / declined"). A customer-facing page with an Accept
+  button (signed link, like invoices) is the natural next step and is not built.
+- "Expired" is derived (sent/viewed with an expiry date before today in the business timezone), like
+  "overdue"; it is filterable but never stored. An expired estimate can still be accepted or converted,
+  because a customer may say yes late and the owner decides.
+- Editable until accepted, declined or converted. Only drafts can be deleted.
+- **Convert** creates a DRAFT invoice (issue date today, due date = today + the business's default
+  payment terms) in the same transaction that locks the estimate row and stamps `converted_invoice_id`,
+  so concurrent taps create exactly one invoice and a failure rolls both back. A declined estimate cannot
+  be converted. The estimate stays as a record and is read-only afterwards. The accepted estimate is not
+  automatically converted; that is a deliberate owner action.
+- The estimate PDF reuses the invoice renderer (`kind: 'estimate'`: "ESTIMATE", "Valid until", no
+  paid/balance rows, no payment information or pay link). The email attaches the PDF only; there is no
+  link because estimates have no public page.
+- No activity timeline or push notifications for estimates yet (those tables are invoice-specific);
+  changes are written to the audit log.
+- Mobile: estimates live in the Invoices stack (More > Estimates, the "+" menu, and the Convert flow
+  jumps to the new invoice). The invoice form and document components are reused through a `kind` prop.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

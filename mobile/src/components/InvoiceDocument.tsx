@@ -15,10 +15,14 @@ const safeAccent = (c: string) => (/^#[0-9a-f]{6}$/i.test(c) ? c : '#2563EB');
 export function InvoiceDocument({
   invoice: inv,
   business: biz,
+  kind = 'invoice',
 }: {
   invoice: Invoice;
   business: BusinessProfile;
+  /** Estimates print their expiry, say "prepared for" and have no payment lines. */
+  kind?: 'invoice' | 'estimate';
 }) {
+  const estimate = kind === 'estimate';
   const c = useTheme();
   const accent = safeAccent(biz.accentColor);
   const logo = useBusinessAsset('logo', biz.logoPath);
@@ -39,7 +43,7 @@ export function InvoiceDocument({
   return (
     <View
       style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}
-      accessibilityLabel={`Invoice ${inv.number}`}
+      accessibilityLabel={`${estimate ? 'Estimate' : 'Invoice'} ${inv.number}`}
     >
       <View style={styles.row}>
         <View style={{ flex: 1, gap: 2 }}>
@@ -59,18 +63,24 @@ export function InvoiceDocument({
           ))}
         </View>
         <View style={{ alignItems: 'flex-end', gap: 2 }}>
-          <Text style={{ color: accent, fontSize: 22, fontWeight: '800' }}>INVOICE</Text>
+          <Text style={{ color: accent, fontSize: 22, fontWeight: '800' }}>
+            {estimate ? 'ESTIMATE' : 'INVOICE'}
+          </Text>
           <Text style={{ color: c.text, fontWeight: '700' }}>{inv.number}</Text>
           <Text style={{ color: c.muted, fontSize: 12 }}>
             Issued {formatLongDate(inv.issueDate)}
           </Text>
-          <Text style={{ color: c.muted, fontSize: 12 }}>Due {formatLongDate(inv.dueDate)}</Text>
+          <Text style={{ color: c.muted, fontSize: 12 }}>
+            {estimate ? 'Valid until' : 'Due'} {formatLongDate(inv.dueDate)}
+          </Text>
           <StatusBadge status={inv.displayStatus} />
         </View>
       </View>
 
       <View style={{ gap: 2 }}>
-        <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700' }}>BILL TO</Text>
+        <Text style={{ color: c.muted, fontSize: 11, fontWeight: '700' }}>
+          {estimate ? 'PREPARED FOR' : 'BILL TO'}
+        </Text>
         <Text style={{ color: c.text, fontSize: 15, fontWeight: '700' }}>{inv.customerName}</Text>
         {inv.customerEmail ? (
           <Text style={{ color: c.muted, fontSize: 12 }}>{inv.customerEmail}</Text>
@@ -120,9 +130,17 @@ export function InvoiceDocument({
         ))}
       </View>
 
-      <TotalsCard rows={rowsFromInvoice(inv)} />
+      <TotalsCard
+        rows={
+          estimate
+            ? rowsFromInvoice(inv).filter(
+                (r) => r.label !== 'Amount paid' && r.label !== 'Balance due',
+              )
+            : rowsFromInvoice(inv)
+        }
+      />
 
-      {biz.paymentInstructions ? (
+      {biz.paymentInstructions && !estimate ? (
         <View style={{ gap: 2 }}>
           <Text style={{ color: accent, fontSize: 11, fontWeight: '700' }}>
             PAYMENT INFORMATION

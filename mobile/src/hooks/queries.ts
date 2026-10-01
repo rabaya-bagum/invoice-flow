@@ -5,7 +5,12 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import type { InvoiceWriteInput, SendInvoiceInput, TaxRateInput } from '@invoiceflow/shared';
+import type {
+  EstimateWriteInput,
+  InvoiceWriteInput,
+  SendInvoiceInput,
+  TaxRateInput,
+} from '@invoiceflow/shared';
 import type { BusinessUpdate, CustomerInput, DashboardPeriod, ProductInput } from '../models';
 import { useAuth } from '../store/auth';
 
@@ -18,6 +23,7 @@ export const keys = {
   products: ['products'] as const,
   product: (id: string) => ['products', 'detail', id] as const,
   invoices: ['invoices'] as const,
+  estimates: ['estimates'] as const,
   // Nested under invoices so any invoice/payment mutation refreshes the dashboard too.
   dashboard: (period: string) => ['invoices', 'dashboard', period] as const,
   taxRates: ['tax-rates'] as const,
@@ -357,5 +363,80 @@ export function useDashboard(period: DashboardPeriod) {
     queryKey: keys.dashboard(period),
     queryFn: () => api.getDashboard(period),
     staleTime: 15_000,
+  });
+}
+
+// ------------------------------------------------------------------ estimates
+export function useEstimates(f: InvoiceFilters) {
+  const { api } = useAuth();
+  return useInfiniteQuery({
+    queryKey: [...keys.estimates, 'list', f],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.listEstimates({ ...f, limit: PAGE_SIZE, offset: pageParam }),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
+  });
+}
+
+export function useEstimate(id: string | undefined) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: [...keys.estimates, 'detail', id ?? ''],
+    queryFn: () => api.getEstimate(id as string),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSaveEstimate(id?: string) {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: EstimateWriteInput) =>
+      id ? api.updateEstimate(id, input) : api.createEstimate(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.estimates }),
+  });
+}
+
+export function useDeleteEstimate() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteEstimate(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.estimates }),
+  });
+}
+
+export function useTransitionEstimate() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; to: 'sent' | 'accepted' | 'rejected' }) =>
+      api.transitionEstimate(v.id, v.to),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.estimates }),
+  });
+}
+
+/** Converting creates an invoice, so both lists (and the dashboard) must refresh. */
+export function useConvertEstimate() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.convertEstimate(id),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: keys.estimates }),
+        qc.invalidateQueries({ queryKey: keys.invoices }),
+      ]),
+  });
+}
+
+export function useSendEstimate(id: string) {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SendInvoiceInput) => api.sendEstimate(id, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.estimates }),
   });
 }
