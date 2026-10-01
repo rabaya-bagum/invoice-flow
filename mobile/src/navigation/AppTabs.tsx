@@ -4,6 +4,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BusinessProfileScreen } from '../screens/BusinessProfileScreen';
 import { InvoiceListScreen } from '../screens/InvoiceListScreen';
 import { InvoiceScreen } from '../screens/InvoiceScreen';
+import { OnlinePaymentsScreen } from '../screens/OnlinePaymentsScreen';
+import { PaymentDetailScreen } from '../screens/PaymentDetailScreen';
+import { PaymentListScreen } from '../screens/PaymentListScreen';
 import { SendInvoiceScreen } from '../screens/SendInvoiceScreen';
 import { TaxRatesScreen } from '../screens/TaxRatesScreen';
 import { CustomerDetailScreen } from '../screens/CustomerDetailScreen';
@@ -11,7 +14,6 @@ import { CustomerFormScreen } from '../screens/CustomerFormScreen';
 import { CustomerListScreen } from '../screens/CustomerListScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MoreScreen } from '../screens/MoreScreen';
-import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import { ProductFormScreen } from '../screens/ProductFormScreen';
 import { ProductListScreen } from '../screens/ProductListScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
@@ -19,13 +21,32 @@ import type {
   CustomersStackParams,
   InvoicesStackParams,
   MoreStackParams,
+  PaymentsStackParams,
   TabParams,
 } from './types';
 
 const Tabs = createBottomTabNavigator<TabParams>();
 const Customers = createNativeStackNavigator<CustomersStackParams>();
 const Invoices = createNativeStackNavigator<InvoicesStackParams>();
+const Payments = createNativeStackNavigator<PaymentsStackParams>();
 const More = createNativeStackNavigator<MoreStackParams>();
+
+function PaymentsStack() {
+  return (
+    <Payments.Navigator>
+      <Payments.Screen
+        name="PaymentList"
+        component={PaymentListScreen}
+        options={{ title: 'Payments' }}
+      />
+      <Payments.Screen
+        name="PaymentDetail"
+        component={PaymentDetailScreen}
+        options={{ title: 'Payment' }}
+      />
+    </Payments.Navigator>
+  );
+}
 
 function InvoicesStack() {
   return (
@@ -91,6 +112,11 @@ function MoreStack() {
         options={({ route }) => ({ title: route.params?.id ? 'Edit item' : 'New item' })}
       />
       <More.Screen name="TaxRates" component={TaxRatesScreen} options={{ title: 'Tax rates' }} />
+      <More.Screen
+        name="OnlinePayments"
+        component={OnlinePaymentsScreen}
+        options={{ title: 'Online payments' }}
+      />
       <More.Screen name="Settings" component={SettingsScreen} />
     </More.Navigator>
   );
@@ -122,15 +148,9 @@ export function AppTabs() {
       />
       <Tabs.Screen
         name="PaymentsTab"
+        component={PaymentsStack}
         options={{ title: 'Payments', tabBarIcon: icon('card-outline') }}
-      >
-        {() => (
-          <PlaceholderScreen
-            title="Payments"
-            hint="Payment history appears once payments are enabled."
-          />
-        )}
-      </Tabs.Screen>
+      />
       <Tabs.Screen
         name="MoreTab"
         component={MoreStack}

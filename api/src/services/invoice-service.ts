@@ -208,6 +208,13 @@ export function createInvoiceService(db: Database) {
         if (!isEditable(current.status, current.amountPaidMinor)) {
           throw new AppError(409, 'INVOICE_LOCKED', 'This invoice can no longer be edited');
         }
+        if (await r.hasPendingPayment(actor.businessId, id)) {
+          throw new AppError(
+            409,
+            'PAYMENT_IN_PROGRESS',
+            'A payment is in progress for this invoice. Try again in a moment.',
+          );
+        }
         if (input.version !== undefined && input.version !== current.version) {
           throw new AppError(
             409,
@@ -277,6 +284,13 @@ export function createInvoiceService(db: Database) {
             409,
             'INVALID_TRANSITION',
             `A ${current.status.replace('_', ' ')} invoice cannot become ${to}`,
+          );
+        }
+        if (await r.hasPendingPayment(actor.businessId, id)) {
+          throw new AppError(
+            409,
+            'PAYMENT_IN_PROGRESS',
+            'A payment is in progress for this invoice. Try again in a moment.',
           );
         }
         if (to === 'cancelled' && current.amountPaidMinor > 0) {

@@ -18,6 +18,18 @@ const schema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   /** From address, e.g. "InvoiceFlow <invoices@yourdomain.com>" (domain verified with Resend). */
   EMAIL_FROM: z.string().min(3).default('InvoiceFlow <onboarding@resend.dev>'),
+  /** Stripe secret key (sk_test_... / sk_live_...). Without it, online payments are disabled. */
+  STRIPE_SECRET_KEY: z.string().min(1).optional(),
+  /** Signing secret of the webhook endpoint POST {PUBLIC_APP_URL}/v1/payments/webhook (whsec_...). */
+  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  /** Publishable key (pk_...), sent to the pay page for Stripe.js. */
+  STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  /** Platform fee on each online payment, in basis points (250 = 2.5%). */
+  PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(2000).default(0),
+  /** Creating payment intents per minute per IP on the public page. */
+  PAYMENT_INTENT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  /** Contents of Stripe's Apple Pay domain association file, served at /.well-known/. */
+  APPLE_PAY_DOMAIN_ASSOCIATION: z.string().min(1).optional(),
   /** Comma-separated list of allowed browser origins (the public pay page). */
   CORS_ORIGINS: z
     .string()

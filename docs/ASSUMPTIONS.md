@@ -114,6 +114,41 @@
   native share sheet / print preview / image picker on a device.
 - The pay page shows a disabled "Online payment is not available yet" button until Phase 6.
 
+## Online payments (Phase 6)
+- **Model:** Stripe Connect **Express** accounts + **destination charges** with `on_behalf_of`: the PaymentIntent
+  lives on the platform account and transfers to the freelancer's account; `application_fee_amount` is the
+  platform fee (`PLATFORM_FEE_BPS`, default 0). Refunds use `reverse_transfer` + `refund_application_fee`.
+  Stripe's processing fees are borne by the platform. (Direct charges would make the freelancer the merchant
+  of record; that is a business decision to revisit before launch.)
+- **The webhook is the only source of truth.** Nothing marks an invoice paid except a signature-verified
+  `payment_intent.succeeded`. The browser's "payment succeeded" screen only polls our server. Events are
+  deduplicated by id in `webhook_events`; the dedupe row commits in the same transaction as its effects, so a
+  failure rolls both back and Stripe's retry reprocesses it. Payment rows are locked (`FOR UPDATE`), so two
+  different events for one payment apply once, and a late `payment_failed` can never undo a success.
+- **Duplicate/over-payment protection:** a partial unique index allows only **one pending payment per invoice**;
+  creating a payment locks the invoice row, reuses the open PaymentIntent for the same amount, cancels and
+  replaces it when the amount changes, and refuses (409) while one is `processing`/`succeeded`. Amounts above the
+  balance are refused. Stripe idempotency keys include a per-invoice attempt counter. While a payment is
+  pending the invoice cannot be edited or cancelled.
+- **Amounts:** the amount Stripe actually collected (`amount_received`) is what is recorded; a difference from
+  what we asked for is audited (`payment.amount_mismatch`). Special currencies: ISK/UGX are sent x100,
+  three-decimal currencies (KWD, BHD, JOD, OMR, TND) must be multiples of 0.01 (`toStripeAmount`).
+- **Invoice status** after payments is recomputed from the payments table (idempotent): `paid` when net received
+  >= total, `partially_paid` when some is received, `refunded` when everything received was refunded. A partial
+  refund of a paid invoice moves it back to `partially_paid` (the status table now allows `paid -> partially_paid`).
+- **Receipts:** the customer's receipt comes from Stripe (`receipt_email` is set from the customer's email; Stripe
+  sends receipts in live mode, not test mode). The owner gets a `notifications` row per event (push delivery is
+  Phase 10) and invoice activity entries.
+- **Refunds** are requested from the app (`POST /v1/payments/:id/refund`, full or partial, idempotent key) and
+  applied when Stripe's `charge.refunded` arrives, never optimistically.
+- **Wallets:** Apple Pay and Google Pay come from the Payment Element on the web page (the app does not embed
+  Stripe's native SDK, so in-app card entry is not offered). Apple Pay needs the domain verification file.
+- **Not built:** manual "record a cash/cheque payment", disputes/chargebacks handling, `account.updated` Connect
+  webhook (status is fetched on demand), payouts reporting, and per-business fee overrides.
+- **Not verified against real Stripe:** all Stripe calls are exercised through a fake gateway; webhook signature
+  verification uses the real SDK. Run an end-to-end test in Stripe test mode (including Apple Pay on a real device
+  and domain) before launch.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

@@ -115,3 +115,31 @@ export interface ActivityEntry {
   message: string | null;
   createdAt: string;
 }
+
+export type PaymentStatus = 'pending' | 'successful' | 'failed' | 'refunded';
+
+export interface Payment {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerName: string;
+  amountMinor: number;
+  refundedMinor: number;
+  currency: string;
+  status: PaymentStatus;
+  method: 'card' | 'apple_pay' | 'google_pay' | 'other' | null;
+  stripePaymentIntentId: string | null;
+  receiptUrl: string | null;
+  failureCode: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface ConnectStatus {
+  configured: boolean;
+  connected: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  requirementsDue: string[];
+}

@@ -18,6 +18,9 @@ import { createTaxRateRepository } from '../src/repositories/tax-rate-repository
 import { createMemoryAssetStorage } from '../src/services/asset-storage';
 import { createDocumentService } from '../src/services/document-service';
 import type { EmailMessage, EmailSender } from '../src/services/email';
+import Stripe from 'stripe';
+import { createPaymentService } from '../src/services/payment-service';
+import type { ChargeLite, PaymentIntentLite, StripeGateway } from '../src/services/stripe-gateway';
 import { createInvoiceService } from '../src/services/invoice-service';
 import { createProductRepository } from '../src/repositories/product-repository';
 import { createAccountService } from '../src/services/account-service';
@@ -111,6 +114,7 @@ export async function buildTestApp(env: Record<string, string> = {}) {
     invoiceService: unused('invoiceService'),
     taxRateRepo: unused('taxRateRepo'),
     documentService: unused('documentService'),
+    paymentService: unused('paymentService'),
   });
   return { app, privateKey, ...fake };
 }
@@ -138,7 +142,10 @@ export async function createUser(email = `${randomUUID()}@example.com`) {
   return { id, email, businessId: (biz.rows[0] as { id: string }).id };
 }
 
-export async function buildDbApp(env: Record<string, string> = {}) {
+export async function buildDbApp(
+  env: Record<string, string> = {},
+  opts: { stripe?: boolean } = {},
+) {
   const { privateKey, jwks } = await makeKeys();
   const db = getPool();
   const database = createDatabase(db);
@@ -166,7 +173,19 @@ export async function buildDbApp(env: Record<string, string> = {}) {
       linkSecret: 'test-secret-test-secret-test-secret-1234',
     },
   });
-  const app = createApp(config(env), {
+  const stripe = fakeStripe();
+  const paymentService = createPaymentService({
+    db: database,
+    invoices: invoiceService,
+    businesses: businessRepo,
+    gateway: opts.stripe === false ? null : stripe.gateway,
+    config: {
+      PUBLIC_APP_URL: 'https://api.test',
+      PLATFORM_FEE_BPS: 250,
+      STRIPE_PUBLISHABLE_KEY: 'pk_test_123',
+    },
+  });
+  const app = createApp(config({ STRIPE_PUBLISHABLE_KEY: 'pk_test_123', ...env }), {
     verifyToken: createTokenVerifier({ issuer: ISSUER, key: jwks, algorithms: ['ES256'] }),
     accountService: createAccountService(
       createAccountRepository(
@@ -181,9 +200,10 @@ export async function buildDbApp(env: Record<string, string> = {}) {
     invoiceService,
     taxRateRepo: createTaxRateRepository(database),
     documentService,
+    paymentService,
   });
   const bearer = async (userId: string) => `Bearer ${await sign(privateKey, { sub: userId })}`;
-  return { app, db, bearer, email, assets };
+  return { app, db, bearer, email, assets, stripe };
 }
 
 /**
@@ -204,3 +224,165 @@ export const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
   'base64',
 );
+
+// ------------------------------------------------------------------ fake Stripe
+export const WEBHOOK_SECRET = 'whsec_test_secret';
+
+interface FakeIntent extends PaymentIntentLite {
+  amount: number;
+  currency: string;
+  params: Parameters<StripeGateway['createPaymentIntent']>[0];
+}
+
+/**
+ * In-memory Stripe. Network calls are faked and recorded; webhook SIGNATURES are verified by the real
+ * Stripe SDK, so signature handling is genuinely tested.
+ */
+export function fakeStripe() {
+  const real = new Stripe('sk_test_fake');
+  const accounts = new Map<
+    string,
+    {
+      chargesEnabled: boolean;
+      payoutsEnabled: boolean;
+      detailsSubmitted: boolean;
+      requirementsDue: string[];
+    }
+  >();
+  const intents = new Map<string, FakeIntent>();
+  const byKey = new Map<string, string>();
+  const refundsByKey = new Map<string, { id: string; status: string }>();
+  const state = {
+    accounts,
+    intents,
+    refunds: [] as Array<{ paymentIntentId: string; amount: number; key: string }>,
+    counts: { createPaymentIntent: 0, cancel: 0, createAccount: 0 },
+    method: 'card' as ChargeLite['method'],
+    failChargeLookup: 0,
+    failIntentCreate: null as string | null,
+  };
+  let n = 0;
+
+  const gateway: StripeGateway = {
+    async createExpressAccount() {
+      state.counts.createAccount++;
+      const id = `acct_${++n}`;
+      accounts.set(id, {
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        detailsSubmitted: false,
+        requirementsDue: ['external_account'],
+      });
+      return { id };
+    },
+    async createAccountLink(accountId, returnUrl, refreshUrl) {
+      return {
+        url: `https://connect.stripe.test/${accountId}?r=${encodeURIComponent(returnUrl)}&f=${encodeURIComponent(refreshUrl)}`,
+      };
+    },
+    async retrieveAccount(id) {
+      const a = accounts.get(id);
+      if (!a) throw new Error('no such account');
+      return a;
+    },
+    async createPaymentIntent(p, key) {
+      const existing = byKey.get(key);
+      if (existing) return intents.get(existing) as FakeIntent;
+      if (state.failIntentCreate) {
+        const { GatewayError } = await import('../src/services/stripe-gateway');
+        throw new GatewayError(state.failIntentCreate, 'stripe says no');
+      }
+      state.counts.createPaymentIntent++;
+      const id = `pi_${++n}`;
+      const pi: FakeIntent = {
+        id,
+        clientSecret: `${id}_secret_abc`,
+        status: 'requires_payment_method',
+        amount: p.amount,
+        currency: p.currency,
+        params: p,
+      };
+      intents.set(id, pi);
+      byKey.set(key, id);
+      return pi;
+    },
+    async retrievePaymentIntent(id) {
+      const pi = intents.get(id);
+      if (!pi) throw new Error('no such intent');
+      return pi;
+    },
+    async cancelPaymentIntent(id) {
+      state.counts.cancel++;
+      const pi = intents.get(id);
+      if (pi) pi.status = 'canceled';
+    },
+    async retrieveCharge(id) {
+      if (state.failChargeLookup > 0) {
+        state.failChargeLookup--;
+        throw new Error('stripe unavailable');
+      }
+      return { id, receiptUrl: `https://receipt.test/${id}`, method: state.method };
+    },
+    async createRefund(p, key) {
+      const done = refundsByKey.get(key);
+      if (done) return done;
+      state.refunds.push({ ...p, key });
+      const r = { id: `re_${++n}`, status: 'succeeded' };
+      refundsByKey.set(key, r);
+      return r;
+    },
+    constructEvent: (raw, sig) =>
+      real.webhooks.constructEvent(raw, sig, WEBHOOK_SECRET) as unknown as ReturnType<
+        StripeGateway['constructEvent']
+      >,
+  };
+
+  /** Builds a validly signed webhook request body + header. */
+  function signed(type: string, object: unknown, id = `evt_${++n}`) {
+    const payload = JSON.stringify({ id, object: 'event', type, data: { object } });
+    return {
+      id,
+      body: payload,
+      signature: real.webhooks.generateTestHeaderString({ payload, secret: WEBHOOK_SECRET }),
+    };
+  }
+
+  /** Customer completes payment at Stripe: intent succeeds, and we get the webhook payload. */
+  function succeededEvent(intentId: string, over: Record<string, unknown> = {}, eventId?: string) {
+    const pi = intents.get(intentId) as FakeIntent;
+    pi.status = 'succeeded';
+    return signed(
+      'payment_intent.succeeded',
+      {
+        id: intentId,
+        object: 'payment_intent',
+        amount: pi.amount,
+        amount_received: pi.amount,
+        currency: pi.currency,
+        latest_charge: `ch_${intentId}`,
+        status: 'succeeded',
+        ...over,
+      },
+      eventId,
+    );
+  }
+  const failedEvent = (intentId: string, code = 'card_declined', eventId?: string) =>
+    signed(
+      'payment_intent.payment_failed',
+      { id: intentId, object: 'payment_intent', last_payment_error: { code } },
+      eventId,
+    );
+  const refundedEvent = (intentId: string, amountRefundedStripe: number, eventId?: string) =>
+    signed(
+      'charge.refunded',
+      {
+        id: `ch_${intentId}`,
+        object: 'charge',
+        payment_intent: intentId,
+        amount_refunded: amountRefundedStripe,
+      },
+      eventId,
+    );
+
+  return { gateway, state, signed, succeededEvent, failedEvent, refundedEvent };
+}

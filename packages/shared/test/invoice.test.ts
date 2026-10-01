@@ -58,6 +58,7 @@ describe('invoice status rules', () => {
     expect(canTransition('sent', 'viewed')).toBe(true);
     expect(canTransition('partially_paid', 'cancelled')).toBe(false);
     expect(canTransition('paid', 'refunded')).toBe(true);
+    expect(canTransition('paid', 'partially_paid')).toBe(true); // partial refund
     for (const s of INVOICE_STATUSES) {
       expect(canTransition('cancelled', s)).toBe(false);
       expect(canTransition(s, 'draft')).toBe(false); // nothing returns to draft

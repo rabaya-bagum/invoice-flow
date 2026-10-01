@@ -14,6 +14,8 @@ import {
   createProductService,
 } from './services/catalog-services';
 import { createSupabaseAssetStorage, ensureAssetBucket } from './services/asset-storage';
+import { createPaymentService } from './services/payment-service';
+import { createStripeGateway } from './services/stripe-gateway';
 import { createDocumentService } from './services/document-service';
 import { createEmailSender } from './services/email';
 import { createInvoiceService } from './services/invoice-service';
@@ -62,6 +64,16 @@ const app = createApp(config, {
   productService: createProductService(createProductRepository(db)),
   invoiceService,
   taxRateRepo: createTaxRateRepository(db),
+  paymentService: createPaymentService({
+    db,
+    invoices: invoiceService,
+    businesses: businessRepo,
+    gateway:
+      config.STRIPE_SECRET_KEY && config.STRIPE_WEBHOOK_SECRET
+        ? createStripeGateway(config.STRIPE_SECRET_KEY, config.STRIPE_WEBHOOK_SECRET)
+        : null,
+    config,
+  }),
   documentService: createDocumentService({
     db,
     invoices: invoiceService,

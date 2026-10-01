@@ -82,6 +82,12 @@ const CODE_MESSAGES: Record<string, string> = {
   INVOICE_NOT_SENDABLE: 'This invoice can no longer be sent.',
   IMAGE_TOO_LARGE: 'That image is too large. Choose one under 1 MB.',
   IMAGE_TYPE: 'Use a PNG or JPEG image.',
+  PAYMENTS_UNAVAILABLE: 'Online payments are not available right now.',
+  PAYMENTS_NOT_ENABLED: 'Set up online payments first (More → Online payments).',
+  PAYMENT_PROVIDER_ERROR: 'The payment provider could not be reached. Please try again.',
+  PAYMENT_IN_PROGRESS: 'A payment is in progress for this invoice. Try again in a moment.',
+  NOT_REFUNDABLE: 'Only successful payments can be refunded.',
+  AMOUNT_TOO_HIGH: 'That amount is higher than allowed.',
   SKU_EXISTS: 'Another product already uses that SKU.',
 };
 

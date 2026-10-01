@@ -18,7 +18,8 @@ const TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]> = {
   sent: ['viewed', 'partially_paid', 'paid', 'cancelled'],
   viewed: ['partially_paid', 'paid', 'cancelled'],
   partially_paid: ['paid', 'refunded'],
-  paid: ['refunded'],
+  // A partial refund of a paid invoice leaves a balance, so it goes back to partially_paid.
+  paid: ['partially_paid', 'refunded'],
   cancelled: [],
   refunded: [],
 };

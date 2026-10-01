@@ -20,6 +20,8 @@ export const keys = {
   invoices: ['invoices'] as const,
   taxRates: ['tax-rates'] as const,
   asset: (kind: string) => ['business-asset', kind] as const,
+  payments: ['payments'] as const,
+  connect: ['connect-status'] as const,
 };
 
 /** Only retry transient failures; a 4xx will not fix itself. */
@@ -270,4 +272,49 @@ export function useSendInvoice(id: string) {
     mutationFn: (input: SendInvoiceInput) => api.sendInvoice(id, input),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.invoices }),
   });
+}
+
+// ------------------------------------------------------------------ online payments
+export function usePayments(f: { status?: string; search: string }) {
+  const { api } = useAuth();
+  return useInfiniteQuery({
+    queryKey: [...keys.payments, 'list', f],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.listPayments({ ...f, limit: PAGE_SIZE, offset: pageParam }),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
+  });
+}
+
+export function usePayment(id: string) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: [...keys.payments, 'detail', id],
+    queryFn: () => api.getPayment(id),
+  });
+}
+
+export function useRefundPayment(id: string) {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (amountMinor?: number) => api.refundPayment(id, amountMinor),
+    // The refund is confirmed by Stripe's webhook, so refetch shortly after instead of assuming.
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.payments });
+      void qc.invalidateQueries({ queryKey: keys.invoices });
+    },
+  });
+}
+
+export function useConnectStatus() {
+  const { api } = useAuth();
+  return useQuery({ queryKey: keys.connect, queryFn: api.getConnectStatus, staleTime: 0 });
+}
+
+export function useStartConnectOnboarding() {
+  const { api } = useAuth();
+  return useMutation({ mutationFn: () => api.startConnectOnboarding() });
 }

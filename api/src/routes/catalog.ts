@@ -1,4 +1,5 @@
 import { Router, raw, type RequestHandler } from 'express';
+import type { createPaymentController } from '../controllers/payment-controllers';
 import type { createDocumentController } from '../controllers/document-controllers';
 import type {
   createInvoiceController,
@@ -17,6 +18,7 @@ export function createCatalogRouter(c: {
   invoices: ReturnType<typeof createInvoiceController>;
   taxRates: ReturnType<typeof createTaxRateController>;
   documents: ReturnType<typeof createDocumentController>;
+  payments: ReturnType<typeof createPaymentController>;
   sendLimiter: RequestHandler;
 }) {
   const r = Router();
@@ -53,6 +55,13 @@ export function createCatalogRouter(c: {
   r.put('/business/:kind', image, c.documents.putAsset);
   r.get('/business/:kind', c.documents.getAsset);
   r.delete('/business/:kind', c.documents.removeAsset);
+
+  r.get('/payments/connect/status', c.payments.connectStatus);
+  r.post('/payments/connect/onboard', c.payments.connectOnboard);
+  r.post('/payments/create-intent', c.payments.createIntent);
+  r.get('/payments', c.payments.list);
+  r.get('/payments/:id', c.payments.get);
+  r.post('/payments/:id/refund', c.payments.refund);
 
   r.get('/tax-rates', c.taxRates.list);
   r.post('/tax-rates', c.taxRates.create);

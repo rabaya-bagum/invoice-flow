@@ -72,6 +72,11 @@ export interface BusinessRepository {
   findIdByOwner(userId: string): Promise<string | null>;
   get(businessId: string): Promise<BusinessProfile | null>;
   update(businessId: string, patch: BusinessUpdate): Promise<BusinessProfile | null>;
+  getStripeAccount(
+    businessId: string,
+  ): Promise<{ accountId: string | null; chargesEnabled: boolean } | null>;
+  setStripeAccount(businessId: string, accountId: string): Promise<void>;
+  setChargesEnabled(businessId: string, enabled: boolean): Promise<void>;
   /** Records where a logo/signature is stored (null removes it). */
   setAssetPath(businessId: string, kind: 'logo' | 'signature', key: string | null): Promise<void>;
 }
@@ -92,6 +97,33 @@ export function createBusinessRepository(db: Queryable): BusinessRepository {
         [businessId],
       );
       return r.rows[0] ?? null;
+    },
+
+    async getStripeAccount(businessId) {
+      const r = await db.query<{
+        stripe_account_id: string | null;
+        stripe_charges_enabled: boolean;
+      }>('SELECT stripe_account_id, stripe_charges_enabled FROM business_profiles WHERE id = $1', [
+        businessId,
+      ]);
+      const row = r.rows[0];
+      return row
+        ? { accountId: row.stripe_account_id, chargesEnabled: row.stripe_charges_enabled }
+        : null;
+    },
+
+    async setStripeAccount(businessId, accountId) {
+      await db.query('UPDATE business_profiles SET stripe_account_id = $2 WHERE id = $1', [
+        businessId,
+        accountId,
+      ]);
+    },
+
+    async setChargesEnabled(businessId, enabled) {
+      await db.query('UPDATE business_profiles SET stripe_charges_enabled = $2 WHERE id = $1', [
+        businessId,
+        enabled,
+      ]);
     },
 
     async setAssetPath(businessId, kind, key) {

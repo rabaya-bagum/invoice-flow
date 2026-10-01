@@ -4,12 +4,49 @@ import {
   formatMoney,
   formatPercent,
   formatQuantity,
+  getExponent,
   isSupportedCurrency,
 } from '@invoiceflow/shared';
 import { escapeHtml as e } from '../services/email';
+import { PAY_CLIENT_JS } from './pay-client';
 import type { LoadedDocument } from '../services/document-service';
 
 type View = LoadedDocument & { payable: boolean };
+
+/** Stripe.js-based online payment, shown only when the business can take card payments. */
+export interface PayPageStripe {
+  publishableKey: string;
+}
+
+/** CSP for the page: strict by default; Stripe hosts are allowed only when online payment is on. */
+export function payPageCsp(nonce: string, stripeEnabled: boolean): string {
+  const base = [
+    "default-src 'none'",
+    "form-action 'none'",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+  ];
+  if (!stripeEnabled) {
+    return [
+      ...base,
+      "style-src 'unsafe-inline'",
+      'img-src data:',
+      `script-src 'nonce-${nonce}'`,
+      "connect-src 'self'",
+    ].join('; ');
+  }
+  return [
+    ...base,
+    "style-src 'unsafe-inline'",
+    'img-src data: https://*.stripe.com',
+    `script-src 'nonce-${nonce}' https://js.stripe.com`,
+    "connect-src 'self' https://api.stripe.com https://*.stripe.com",
+    'frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com',
+  ].join('; ');
+}
+
+/** JSON for a <script type="application/json"> block: `<` is escaped so content can never close the tag. */
+const jsonForScript = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 const money = (n: number, cur: string) =>
   isSupportedCurrency(cur) ? formatMoney(n, cur) : `${n} ${cur}`;
@@ -30,7 +67,12 @@ const STATUS: Record<string, string> = {
  */
 export function renderPayPage(
   view: View,
-  opts: { token: string; nonce: string; logoDataUri?: string | null },
+  opts: {
+    token: string;
+    nonce: string;
+    logoDataUri?: string | null;
+    stripe?: PayPageStripe | null;
+  },
 ): string {
   const { invoice: inv, business: biz, customer } = view;
   const accent = safeColor(biz.accentColor);
@@ -82,12 +124,39 @@ export function renderPayPage(
     .join('');
   const statusLabel = STATUS[inv.displayStatus] ?? inv.displayStatus;
 
+  const stripe = view.payable ? opts.stripe : null;
+  const other = biz.paymentInstructions
+    ? `<h3>Other ways to pay</h3><p class="pre">${e(biz.paymentInstructions)}</p>`
+    : '';
   const pay = view.payable
-    ? `<section class="card"><h2>Pay this invoice</h2>
+    ? stripe
+      ? `<section class="card" id="pay-section"><h2>Pay this invoice</h2>
         <p class="muted">Amount due: <strong>${e(money(inv.balanceDueMinor, inv.currency))}</strong></p>
-        <button type="button" disabled aria-disabled="true">Online payment is not available yet</button>
-        ${biz.paymentInstructions ? `<h3>Other ways to pay</h3><p class="pre">${e(biz.paymentInstructions)}</p>` : ''}
+        <div id="pay-msg" hidden role="status" aria-live="polite"></div>
+        <div id="pay-choose">
+          <label class="opt"><input type="radio" name="pay-mode" id="pay-mode-full" checked> Pay the full amount (${e(money(inv.balanceDueMinor, inv.currency))})</label>
+          <label class="opt"><input type="radio" name="pay-mode" id="pay-mode-partial"> Pay a different amount</label>
+          <div id="pay-amount-row" hidden><label for="pay-amount">Amount (${e(inv.currency)})</label><input id="pay-amount" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
+          <button type="button" id="pay-start" class="primary">Continue to payment</button>
+        </div>
+        <form id="pay-form" hidden><div id="payment-element"></div><button type="submit" id="pay-submit" class="primary">Pay</button></form>
+        ${other}
       </section>`
+      : `<section class="card"><h2>How to pay</h2>
+        ${biz.paymentInstructions ? `<p class="pre">${e(biz.paymentInstructions)}</p>` : '<p class="muted">Online payment is not available for this invoice. Please contact the sender to arrange payment.</p>'}
+      </section>`
+    : '';
+  const stripeScripts = stripe
+    ? `<script type="application/json" id="pay-config">${jsonForScript({
+        token: opts.token,
+        publishableKey: stripe.publishableKey,
+        accent,
+        exponent: isSupportedCurrency(inv.currency) ? getExponent(inv.currency) : 2,
+        balanceMinor: inv.balanceDueMinor,
+        paidMinor: inv.amountPaidMinor,
+      })}</script>
+<script src="https://js.stripe.com/v3/"></script>
+<script nonce="${e(opts.nonce)}">${PAY_CLIENT_JS}</script>`
     : '';
 
   return `<!doctype html>
@@ -106,7 +175,9 @@ table{width:100%;border-collapse:collapse;margin-top:8px}th{font-size:.75rem;tex
 th:first-child,td.desc{text-align:left}td{padding:10px 6px;border-bottom:1px solid var(--line);vertical-align:top}td.num{text-align:right;white-space:nowrap}
 .totals{margin-left:auto;max-width:320px;margin-top:12px}.trow{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted)}.trow.strong{color:var(--ink);font-weight:700}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:560px){.grid{grid-template-columns:1fr}}
-button{min-height:48px;width:100%;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:1rem;font-weight:700;opacity:.55}
+button.primary{min-height:48px;width:100%;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:1rem;font-weight:700;margin-top:12px}button:disabled{opacity:.55}
+.opt{display:block;padding:8px 0}#pay-amount-row{margin:4px 0 8px}#pay-amount{width:100%;min-height:44px;font-size:1rem;padding:0 12px;border:1px solid var(--line);border-radius:10px}
+#pay-msg{padding:10px 12px;border-radius:10px;margin:8px 0;background:#eff6ff}#pay-msg.error{background:#fef2f2;color:#991b1b}#pay-msg.ok{background:#f0fdf4;color:#166534}
 a.btn{display:inline-block;min-height:44px;line-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none;font-weight:600}
 </style></head>
 <body data-token="${e(opts.token)}"><main>
@@ -125,6 +196,7 @@ ${inv.notes ? `<section class="card"><h2>Notes</h2><p class="pre">${e(inv.notes)
 ${inv.terms ? `<section class="card"><h2>Terms and conditions</h2><p class="pre muted">${e(inv.terms)}</p></section>` : ''}
 <p><a class="btn" href="/public/invoices/${e(opts.token)}/pdf" download>Download PDF</a></p>
 </main>
+${stripeScripts}
 <script nonce="${e(opts.nonce)}">fetch('/public/invoices/'+encodeURIComponent(document.body.dataset.token)+'/view',{method:'POST',keepalive:true}).catch(function(){});</script>
 </body></html>`;
 }

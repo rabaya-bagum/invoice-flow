@@ -3,6 +3,8 @@ import { bytesToBase64 } from '../utils/base64';
 import type {
   ActivityEntry,
   BusinessProfile,
+  ConnectStatus,
+  Payment,
   BusinessUpdate,
   Customer,
   CustomerInput,
@@ -161,6 +163,18 @@ export function createApiClient(opts: ApiClientOptions) {
         throw e;
       }
     },
+
+    getConnectStatus: () => request<ConnectStatus>('/v1/payments/connect/status'),
+    startConnectOnboarding: () =>
+      request<{ url: string }>('/v1/payments/connect/onboard', { method: 'POST' }),
+    listPayments: (p: { status?: string; search?: string; limit?: number; offset?: number }) =>
+      request<Page<Payment>>(`/v1/payments${qs({ ...p })}`),
+    getPayment: (id: string) => request<Payment>(`/v1/payments/${id}`),
+    refundPayment: (id: string, amountMinor?: number) =>
+      request<{ requested: number }>(
+        `/v1/payments/${id}/refund`,
+        body('POST', amountMinor ? { amountMinor } : {}),
+      ),
 
     listTaxRates: () => request<{ items: TaxRate[] }>('/v1/tax-rates'),
     createTaxRate: (input: TaxRateInput) => request<TaxRate>('/v1/tax-rates', body('POST', input)),

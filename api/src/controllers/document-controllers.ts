@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { sendInvoiceInputSchema } from '@invoiceflow/shared';
 import type { Request, Response } from 'express';
-import { renderPayPage } from '../public/pay-page';
+import { payPageCsp, renderPayPage } from '../public/pay-page';
 import type { AssetKind, DocumentService } from '../services/document-service';
+import type { PaymentService } from '../services/payment-service';
 import { AppError, notFound } from '../utils/errors';
 import { businessId, idParam } from '../utils/http';
 
@@ -63,7 +64,7 @@ export function createDocumentController(svc: DocumentService) {
 }
 
 /** Unauthenticated, token-gated customer access. Every failure is an identical 404. */
-export function createPublicController(svc: DocumentService) {
+export function createPublicController(svc: DocumentService, payments: PaymentService) {
   const noStore = (res: Response) =>
     res.set({
       'Cache-Control': 'no-store',
@@ -95,6 +96,10 @@ export function createPublicController(svc: DocumentService) {
         amountPaidMinor: inv.amountPaidMinor,
         balanceDueMinor: inv.balanceDueMinor,
         payable: v.payable,
+        onlinePayments:
+          v.payable &&
+          Boolean(payments.publishableKey()) &&
+          (await payments.onlinePaymentsEnabled(b.id)),
         items: inv.items.map((i) => ({
           description: i.description,
           quantityMilli: i.quantityMilli,
@@ -142,13 +147,15 @@ export function createPublicController(svc: DocumentService) {
       const logo = v.logo
         ? `data:${v.logo[0] === 0x89 ? 'image/png' : 'image/jpeg'};base64,${v.logo.toString('base64')}`
         : null;
+      const key = payments.publishableKey();
+      const stripe =
+        v.payable && key && (await payments.onlinePaymentsEnabled(v.business.id))
+          ? { publishableKey: key }
+          : null;
       noStore(res)
-        .set(
-          'Content-Security-Policy',
-          `default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'nonce-${nonce}'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'`,
-        )
+        .set('Content-Security-Policy', payPageCsp(nonce, Boolean(stripe)))
         .type('html')
-        .send(renderPayPage(v, { token: token(req), nonce, logoDataUri: logo }));
+        .send(renderPayPage(v, { token: token(req), nonce, logoDataUri: logo, stripe }));
     },
   };
 }

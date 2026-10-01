@@ -163,9 +163,17 @@ export interface InvoiceRepository {
   publicLookup(invoiceId: string): Promise<{ businessId: string; salt: string | null } | null>;
   /** sent -> viewed, once. Returns true if this call changed the status. */
   markViewed(businessId: string, id: string): Promise<boolean>;
+  /** True while a payment attempt is in flight: the invoice amount must not change under it. */
+  hasPendingPayment(businessId: string, id: string): Promise<boolean>;
+  /** Applies the result of payments/refunds to the invoice (called with the row locked). */
+  setPaymentState(
+    businessId: string,
+    id: string,
+    state: { amountPaidMinor: number; status: InvoiceStatus | null },
+  ): Promise<void>;
   addAudit(entry: {
     businessId: string;
-    userId: string;
+    userId: string | null;
     action: string;
     entityId: string;
     ip?: string;
@@ -382,8 +390,9 @@ export function createInvoiceRepository(db: Queryable): InvoiceRepository {
 
     async addActivity(businessId, invoiceId, type, message, metadata = {}) {
       await db.query(
-        `INSERT INTO invoice_activity (business_id, invoice_id, type, message, metadata)
-         VALUES ($1, $2, $3, $4, $5)`,
+        // clock_timestamp(), not now(): entries written in one transaction must keep their order.
+        `INSERT INTO invoice_activity (business_id, invoice_id, type, message, metadata, created_at)
+         VALUES ($1, $2, $3, $4, $5, clock_timestamp())`,
         [businessId, invoiceId, type, message, JSON.stringify(metadata)],
       );
     },
@@ -432,6 +441,25 @@ export function createInvoiceRepository(db: Queryable): InvoiceRepository {
         [id, businessId],
       );
       return (r.rowCount ?? 0) > 0;
+    },
+
+    async hasPendingPayment(businessId, id) {
+      const r = await db.query(
+        "SELECT 1 FROM payments WHERE invoice_id = $1 AND business_id = $2 AND status = 'pending'",
+        [id, businessId],
+      );
+      return (r.rowCount ?? 0) > 0;
+    },
+
+    async setPaymentState(businessId, id, state) {
+      await db.query(
+        `UPDATE invoices SET amount_paid_minor = $3,
+           status = coalesce($4::invoice_status, status),
+           paid_at = CASE WHEN coalesce($4::invoice_status, status) = 'paid' THEN coalesce(paid_at, now()) ELSE NULL END,
+           version = version + 1
+         WHERE id = $1 AND business_id = $2`,
+        [id, businessId, state.amountPaidMinor, state.status],
+      );
     },
 
     async addAudit(e) {

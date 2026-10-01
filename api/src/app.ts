@@ -19,6 +19,12 @@ import {
   createDocumentController,
   createPublicController,
 } from './controllers/document-controllers';
+import {
+  createPaymentController,
+  createPublicPaymentHandler,
+  createWebhookHandler,
+  stripeReturnHandlers,
+} from './controllers/payment-controllers';
 import { requireAuth } from './middleware/auth';
 import { requireBusiness } from './middleware/business';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
@@ -26,6 +32,7 @@ import { healthRouter } from './routes/health';
 import type { BusinessRepository } from './repositories/business-repository';
 import type { TaxRateRepository } from './repositories/tax-rate-repository';
 import type { DocumentService } from './services/document-service';
+import type { PaymentService } from './services/payment-service';
 import type { InvoiceService } from './services/invoice-service';
 import { createCatalogRouter } from './routes/catalog';
 import { createMeRouter } from './routes/me';
@@ -43,6 +50,7 @@ export interface AppDeps {
   invoiceService: InvoiceService;
   taxRateRepo: TaxRateRepository;
   documentService: DocumentService;
+  paymentService: PaymentService;
 }
 
 export function createApp(config: Config, deps: AppDeps) {
@@ -60,7 +68,7 @@ export function createApp(config: Config, deps: AppDeps) {
   app.use(healthRouter);
 
   // Customer-facing, token-gated routes (no login). Tighter rate limit, never cached or indexed.
-  const publicCtrl = createPublicController(deps.documentService);
+  const publicCtrl = createPublicController(deps.documentService, deps.paymentService);
   const publicLimiter = rateLimit({
     windowMs: 60_000,
     limit: config.PUBLIC_RATE_LIMIT_PER_MINUTE,
@@ -72,6 +80,38 @@ export function createApp(config: Config, deps: AppDeps) {
   app.get('/public/invoices/:token', publicLimiter, publicCtrl.json);
   app.get('/public/invoices/:token/pdf', publicLimiter, publicCtrl.pdf);
   app.post('/public/invoices/:token/view', publicLimiter, publicCtrl.view);
+  app.post(
+    '/public/invoices/:token/payment-intent',
+    rateLimit({
+      windowMs: 60_000,
+      limit: config.PAYMENT_INTENT_RATE_LIMIT_PER_MINUTE,
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+      message: { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
+    }),
+    express.json({ limit: '2kb' }),
+    createPublicPaymentHandler((t) => deps.documentService.resolve(t), deps.paymentService),
+  );
+
+  // Stripe -> us. Signature-verified against the RAW body, so it must be mounted before express.json.
+  app.post(
+    '/v1/payments/webhook',
+    express.raw({ type: 'application/json', limit: '1mb' }),
+    createWebhookHandler(deps.paymentService),
+  );
+
+  // Stripe onboarding landing pages (hand control back to the mobile app).
+  app.get('/stripe/connect/return', stripeReturnHandlers.done);
+  app.get('/stripe/connect/refresh', stripeReturnHandlers.refresh);
+
+  // Apple Pay domain verification file (content is supplied by Stripe).
+  app.get('/.well-known/apple-developer-merchantid-domain-association', (_req, res) => {
+    if (!config.APPLE_PAY_DOMAIN_ASSOCIATION) {
+      res.status(404).end();
+      return;
+    }
+    res.type('text/plain').send(config.APPLE_PAY_DOMAIN_ASSOCIATION);
+  });
 
   const api = express.Router();
   api.use(
@@ -98,6 +138,7 @@ export function createApp(config: Config, deps: AppDeps) {
       invoices: createInvoiceController(deps.invoiceService),
       taxRates: createTaxRateController(deps.taxRateRepo),
       documents: createDocumentController(deps.documentService),
+      payments: createPaymentController(deps.paymentService),
       // Emails are costly and abusable: cap per signed-in user, not just per IP.
       sendLimiter: rateLimit({
         windowMs: 10 * 60_000,

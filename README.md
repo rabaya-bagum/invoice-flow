@@ -69,6 +69,29 @@ use a development build (`npx expo run:ios` / `run:android`) rather than relying
 - **PDF fonts:** invoices use the bundled DejaVu Sans (Latin, Greek, Cyrillic and most currency
   symbols). Chinese, Japanese, Korean, Thai and Devanagari text are not supported in PDFs yet.
 
+## Online payments (Stripe)
+
+Customers pay on the invoice page (`/pay/<token>`) with the Stripe Payment Element: card, Apple Pay and
+Google Pay. The freelancer is paid through **Stripe Connect Express**; the money flow is a *destination
+charge* (the platform account creates the PaymentIntent and transfers to the freelancer, minus the optional
+`PLATFORM_FEE_BPS`).
+
+1. Create a Stripe account, enable **Connect** and finish the platform profile.
+2. Set `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` (use `sk_test_` / `pk_test_` while developing).
+3. Dashboard -> Developers -> Webhooks: add `https://<your API>/v1/payments/webhook` with the events
+   `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`;
+   copy the signing secret into `STRIPE_WEBHOOK_SECRET`. Locally:
+   `stripe listen --forward-to localhost:4000/v1/payments/webhook`.
+4. In the app: More -> Online payments -> set up (Stripe's hosted onboarding). A business can take payments
+   once Stripe reports `charges_enabled`.
+5. **Apple Pay:** Dashboard -> Settings -> Payment method domains: add your API's domain, download the
+   association file, and put its contents in `APPLE_PAY_DOMAIN_ASSOCIATION` (served at
+   `/.well-known/apple-developer-merchantid-domain-association`). **Google Pay** needs no extra setup.
+6. Test with card `4242 4242 4242 4242` (any future date / CVC); `4000 0000 0000 0002` is declined.
+
+Stripe's fees on destination charges are paid by the platform account, so set `PLATFORM_FEE_BPS` high enough
+to cover them if you want to break even.
+
 ## Environment variables
 
 See `api/.env.example` and `mobile/.env.example`. The Supabase **service-role key** and Stripe **secret
@@ -77,5 +100,6 @@ key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and any
 ## Status
 
 Phases 1 (architecture, schema, money library, CI), 2 (authentication), 3 (business profile,
-customers, products, tab navigation), 4 (invoices) and 5 (preview, PDF, email/share, public invoice
-page) are complete. Next: Phase 6, Stripe payments. The dashboard shows placeholder numbers until Phase 8.
+customers, products, tab navigation), 4 (invoices), 5 (preview, PDF, email/share, public invoice
+page) and 6 (Stripe payments) are complete. Next: Phase 7, notifications and the overdue job.
+The dashboard shows placeholder numbers until Phase 8.
