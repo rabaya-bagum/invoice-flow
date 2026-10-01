@@ -32,6 +32,26 @@
 - Not verified on a device: Face ID / fingerprint prompts, SecureStore behaviour, deep-link handling,
   and real Supabase email delivery. Unit tests cover the logic around them with mocks.
 
+## Business profile, customers, products (Phase 3)
+- API uses a direct Postgres connection (`pg`) for these tables; every query takes `business_id`, which
+  comes from the verified user (`requireBusiness`), never from the request. Updates use column
+  whitelists, so bodies cannot set `business_id`, totals or Stripe fields. Unknown keys are rejected on
+  `PUT /v1/business` and stripped elsewhere.
+- Integration tests run against real Postgres with two accounts (IDOR, search injection, SKU scope,
+  cascade delete). Validation schemas live in `packages/shared` and are used by both API and app.
+- Customers: soft delete (`deleted_at`), because invoices reference them. `PUT` replaces the record
+  (omitted fields become null). Search is a case-insensitive substring over name, company, email and
+  phone, with LIKE wildcards escaped. Lists use limit/offset (max 100) and return `{items, total}`.
+- Products: hard delete (invoice items copy name and price). SKU is unique per business.
+  Price is entered in the business's default currency; there is no per-product currency.
+- Percent inputs are parsed to basis points with two decimals max (`parsePercent`).
+- Customer "history" is a placeholder until invoices exist (Phase 4); `GET /v1/customers/:id/invoices`
+  is added then.
+- Logo and signature upload are deferred to Phase 8 (they are only needed for preview/PDF); the columns
+  exist. Tax-rate management (`tax_rates`) arrives with invoices in Phase 4.
+- The dashboard and the "+" quick-create button are deferred: both need invoice data. The tab shell
+  (Home, Invoices, Customers, Payments, More) is in place; Invoices and Payments are placeholders.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

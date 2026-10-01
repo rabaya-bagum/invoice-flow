@@ -5,17 +5,30 @@ import helmet from 'helmet';
 import { pino } from 'pino';
 import { pinoHttp } from 'pino-http';
 import type { Config } from './config';
+import {
+  createBusinessController,
+  createCustomerController,
+  createProductController,
+} from './controllers/catalog-controllers';
 import { createMeController } from './controllers/me-controller';
 import { requireAuth } from './middleware/auth';
+import { requireBusiness } from './middleware/business';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { healthRouter } from './routes/health';
+import type { BusinessRepository } from './repositories/business-repository';
+import { createCatalogRouter } from './routes/catalog';
 import { createMeRouter } from './routes/me';
 import type { AccountService } from './services/account-service';
+import type { BusinessService, CustomerService, ProductService } from './services/catalog-services';
 import type { TokenVerifier } from './services/token-verifier';
 
 export interface AppDeps {
   verifyToken: TokenVerifier;
   accountService: AccountService;
+  businessRepo: BusinessRepository;
+  businessService: BusinessService;
+  customerService: CustomerService;
+  productService: ProductService;
 }
 
 export function createApp(config: Config, deps: AppDeps) {
@@ -47,6 +60,15 @@ export function createApp(config: Config, deps: AppDeps) {
   // Everything below requires a verified Supabase session.
   api.use(requireAuth(deps.verifyToken));
   api.use(createMeRouter(createMeController(deps.accountService)));
+  // Business-scoped routes: the business is resolved from the verified user, never from input.
+  api.use(requireBusiness(deps.businessRepo));
+  api.use(
+    createCatalogRouter({
+      business: createBusinessController(deps.businessService),
+      customers: createCustomerController(deps.customerService),
+      products: createProductController(deps.productService),
+    }),
+  );
   app.use('/v1', api);
 
   app.use(notFoundHandler);

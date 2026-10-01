@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Queryable } from '../db';
 
 export interface Business {
   id: string;
@@ -29,53 +29,57 @@ export interface AccountRepository {
   deleteUser(userId: string): Promise<void>;
 }
 
-/** Service-role access. Every query is scoped by the verified user id. */
-export function createSupabaseAccountRepository(admin: SupabaseClient): AccountRepository {
+/**
+ * @param deleteAuthUser removes the Supabase Auth user (service role). The foreign-key cascade
+ *   then removes the profile, business and all tenant data.
+ */
+export function createAccountRepository(
+  db: Queryable,
+  deleteAuthUser: (userId: string) => Promise<void>,
+): AccountRepository {
   return {
     async findByUserId(userId) {
-      const { data: profile, error: pErr } = await admin
-        .from('profiles')
-        .select('id, full_name')
-        .eq('id', userId)
-        .maybeSingle();
-      if (pErr) throw pErr;
-      if (!profile) return null;
-      const { data: b, error: bErr } = await admin
-        .from('business_profiles')
-        .select('id, name, owner_name, email, default_currency, timezone, stripe_charges_enabled')
-        .eq('owner_id', userId)
-        .maybeSingle();
-      if (bErr) throw bErr;
-      if (!b) return null;
+      const r = await db.query<{
+        user_id: string;
+        full_name: string | null;
+        id: string;
+        name: string;
+        owner_name: string | null;
+        email: string | null;
+        default_currency: string;
+        timezone: string;
+        stripe_charges_enabled: boolean;
+      }>(
+        `SELECT p.id AS user_id, p.full_name, b.id, b.name, b.owner_name, b.email,
+                b.default_currency, b.timezone, b.stripe_charges_enabled
+         FROM profiles p JOIN business_profiles b ON b.owner_id = p.id
+         WHERE p.id = $1`,
+        [userId],
+      );
+      const row = r.rows[0];
+      if (!row) return null;
       return {
-        user: { id: profile.id, fullName: profile.full_name },
+        user: { id: row.user_id, fullName: row.full_name },
         business: {
-          id: b.id,
-          name: b.name,
-          ownerName: b.owner_name,
-          email: b.email,
-          defaultCurrency: b.default_currency,
-          timezone: b.timezone,
-          stripeChargesEnabled: b.stripe_charges_enabled,
+          id: row.id,
+          name: row.name,
+          ownerName: row.owner_name,
+          email: row.email,
+          defaultCurrency: row.default_currency,
+          timezone: row.timezone,
+          stripeChargesEnabled: row.stripe_charges_enabled,
         },
       };
     },
 
     async recordAudit(e) {
-      const { error } = await admin.from('audit_logs').insert({
-        business_id: e.businessId,
-        user_id: e.userId,
-        action: e.action,
-        ip: e.ip ?? null,
-        metadata: e.metadata ?? {},
-      });
-      if (error) throw error;
+      await db.query(
+        `INSERT INTO audit_logs (business_id, user_id, action, ip, metadata)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [e.businessId, e.userId, e.action, e.ip ?? null, JSON.stringify(e.metadata ?? {})],
+      );
     },
 
-    async deleteUser(userId) {
-      // Cascades to profile, business and all tenant data via foreign keys.
-      const { error } = await admin.auth.admin.deleteUser(userId);
-      if (error) throw error;
-    },
+    deleteUser: deleteAuthUser,
   };
 }

@@ -1,0 +1,28 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { View } from 'react-native';
+import { Row } from '../components/Row';
+import type { MoreStackParams } from '../navigation/types';
+import { useTheme } from '../theme/useTheme';
+
+export function MoreScreen({ navigation }: NativeStackScreenProps<MoreStackParams, 'More'>) {
+  const c = useTheme();
+  return (
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <Row
+        title="Business profile"
+        subtitle="Name, address, tax and defaults"
+        onPress={() => navigation.navigate('BusinessProfile')}
+      />
+      <Row
+        title="Products & services"
+        subtitle="Reusable items with prices"
+        onPress={() => navigation.navigate('ProductList')}
+      />
+      <Row
+        title="Settings"
+        subtitle="Security and account"
+        onPress={() => navigation.navigate('Settings')}
+      />
+    </View>
+  );
+}

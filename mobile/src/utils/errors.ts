@@ -9,6 +9,7 @@ export type ErrorKind =
   | 'unknown';
 
 interface ErrorLike {
+  kind?: string;
   code?: string;
   status?: number;
   message?: string;
@@ -18,6 +19,8 @@ interface ErrorLike {
 /** Map any thrown value (Supabase, fetch, our API) to a stable kind. */
 export function classifyError(err: unknown): ErrorKind {
   const e = (err ?? {}) as ErrorLike;
+  // Errors from our own API client already carry a classified kind.
+  if (e.kind && e.kind in MESSAGES) return e.kind as ErrorKind;
   const msg = (e.message ?? '').toLowerCase();
   if (
     e.name === 'AuthRetryableFetchError' ||

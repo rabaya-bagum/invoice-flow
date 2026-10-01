@@ -1,0 +1,128 @@
+import {
+  QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import type { BusinessUpdate, CustomerInput, ProductInput } from '../models';
+import { useAuth } from '../store/auth';
+
+export const PAGE_SIZE = 25;
+
+export const keys = {
+  business: ['business'] as const,
+  customers: ['customers'] as const,
+  customer: (id: string) => ['customers', 'detail', id] as const,
+  products: ['products'] as const,
+  product: (id: string) => ['products', 'detail', id] as const,
+};
+
+/** Only retry transient failures; a 4xx will not fix itself. */
+export function shouldRetry(count: number, err: unknown) {
+  const kind = (err as { kind?: string })?.kind;
+  return (kind === 'network' || kind === 'server') && count < 2;
+}
+
+export function newQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: shouldRetry, staleTime: 30_000 } },
+  });
+}
+
+export function useBusiness() {
+  const { api } = useAuth();
+  return useQuery({ queryKey: keys.business, queryFn: api.getBusiness });
+}
+
+export function useUpdateBusiness() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: BusinessUpdate) => api.updateBusiness(patch),
+    onSuccess: (data) => qc.setQueryData(keys.business, data),
+  });
+}
+
+export function useCustomers(search: string) {
+  const { api } = useAuth();
+  return useInfiniteQuery({
+    queryKey: [...keys.customers, 'list', search],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.listCustomers({ search, limit: PAGE_SIZE, offset: pageParam }),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
+  });
+}
+
+export function useCustomer(id: string | undefined) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: keys.customer(id ?? ''),
+    queryFn: () => api.getCustomer(id as string),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSaveCustomer(id?: string) {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CustomerInput) =>
+      id ? api.updateCustomer(id, input) : api.createCustomer(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.customers }),
+  });
+}
+
+export function useDeleteCustomer() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteCustomer(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.customers }),
+  });
+}
+
+export function useProducts(search: string) {
+  const { api } = useAuth();
+  return useInfiniteQuery({
+    queryKey: [...keys.products, 'list', search],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      api.listProducts({ search, limit: PAGE_SIZE, offset: pageParam, includeInactive: true }),
+    getNextPageParam: (last, pages) => {
+      const loaded = pages.reduce((n, p) => n + p.items.length, 0);
+      return loaded < last.total ? loaded : undefined;
+    },
+  });
+}
+
+export function useProduct(id: string | undefined) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: keys.product(id ?? ''),
+    queryFn: () => api.getProduct(id as string),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSaveProduct(id?: string) {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ProductInput) =>
+      id ? api.updateProduct(id, input) : api.createProduct(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.products }),
+  });
+}
+
+export function useDeleteProduct() {
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteProduct(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.products }),
+  });
+}

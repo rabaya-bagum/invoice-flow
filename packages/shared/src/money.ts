@@ -51,3 +51,18 @@ export function formatQuantity(milli: number): string {
   const out = `${s.slice(0, -3)}.${s.slice(-3)}`.replace(/\.?0+$/, '');
   return out;
 }
+
+/** "13.5" or "5" (percent) -> basis points (1350 / 500). Max two decimals, 0-100. */
+export function parsePercent(input: string): number {
+  const m = /^(\d{1,3})(?:\.(\d{1,2}))?$/.exec(input.trim().replace(/%$/, ''));
+  if (!m) throw new MoneyError('INVALID_RATE', `Invalid percentage: "${input}"`);
+  const bps = Number((m[1] as string) + (m[2] ?? '').padEnd(2, '0'));
+  if (bps > 10_000) throw new MoneyError('INVALID_RATE', 'Percentage cannot exceed 100');
+  return bps;
+}
+
+/** 1350 -> "13.5", 500 -> "5". */
+export function formatPercent(bps: number): string {
+  const s = String(bps).padStart(3, '0');
+  return `${s.slice(0, -2)}.${s.slice(-2)}`.replace(/\.?0+$/, '');
+}

@@ -1,0 +1,103 @@
+import type { BusinessUpdate } from '@invoiceflow/shared';
+import type { Queryable } from '../db';
+import { buildSet } from './sql';
+
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  ownerName: string | null;
+  email: string | null;
+  phone: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+  country: string | null;
+  website: string | null;
+  taxNumber: string | null;
+  logoPath: string | null;
+  signaturePath: string | null;
+  defaultCurrency: string;
+  defaultTaxRateBps: number;
+  defaultPaymentTermsDays: number;
+  timezone: string;
+  invoicePrefix: string;
+  estimatePrefix: string;
+  numberPadding: number;
+  template: string;
+  accentColor: string;
+  displayOptions: Record<string, boolean>;
+  stripeChargesEnabled: boolean;
+}
+
+const COLUMNS: Record<string, string> = {
+  name: 'name',
+  ownerName: 'owner_name',
+  email: 'email',
+  phone: 'phone',
+  addressLine1: 'address_line1',
+  addressLine2: 'address_line2',
+  city: 'city',
+  province: 'province',
+  postalCode: 'postal_code',
+  country: 'country',
+  website: 'website',
+  taxNumber: 'tax_number',
+  defaultCurrency: 'default_currency',
+  defaultTaxRateBps: 'default_tax_rate_bps',
+  defaultPaymentTermsDays: 'default_payment_terms_days',
+  timezone: 'timezone',
+  invoicePrefix: 'invoice_prefix',
+  estimatePrefix: 'estimate_prefix',
+  numberPadding: 'number_padding',
+  template: 'template',
+  accentColor: 'accent_color',
+  displayOptions: 'display_options',
+};
+
+const SELECT = `
+  id, name, owner_name AS "ownerName", email, phone, address_line1 AS "addressLine1",
+  address_line2 AS "addressLine2", city, province, postal_code AS "postalCode", country,
+  website, tax_number AS "taxNumber", logo_path AS "logoPath", signature_path AS "signaturePath",
+  default_currency AS "defaultCurrency", default_tax_rate_bps AS "defaultTaxRateBps",
+  default_payment_terms_days AS "defaultPaymentTermsDays", timezone,
+  invoice_prefix AS "invoicePrefix", estimate_prefix AS "estimatePrefix",
+  number_padding AS "numberPadding", template, accent_color AS "accentColor",
+  display_options AS "displayOptions", stripe_charges_enabled AS "stripeChargesEnabled"`;
+
+export interface BusinessRepository {
+  findIdByOwner(userId: string): Promise<string | null>;
+  get(businessId: string): Promise<BusinessProfile | null>;
+  update(businessId: string, patch: BusinessUpdate): Promise<BusinessProfile | null>;
+}
+
+export function createBusinessRepository(db: Queryable): BusinessRepository {
+  return {
+    async findIdByOwner(userId) {
+      const r = await db.query<{ id: string }>(
+        'SELECT id FROM business_profiles WHERE owner_id = $1',
+        [userId],
+      );
+      return r.rows[0]?.id ?? null;
+    },
+
+    async get(businessId) {
+      const r = await db.query<BusinessProfile>(
+        `SELECT ${SELECT} FROM business_profiles WHERE id = $1`,
+        [businessId],
+      );
+      return r.rows[0] ?? null;
+    },
+
+    async update(businessId, patch) {
+      const set = buildSet(patch as Record<string, unknown>, COLUMNS, 2);
+      if (!set) return this.get(businessId);
+      const r = await db.query<BusinessProfile>(
+        `UPDATE business_profiles SET ${set.sql} WHERE id = $1 RETURNING ${SELECT}`,
+        [businessId, ...set.values],
+      );
+      return r.rows[0] ?? null;
+    },
+  };
+}

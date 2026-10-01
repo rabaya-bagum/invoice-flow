@@ -38,6 +38,12 @@ pnpm --filter @invoiceflow/mobile start     # Expo dev server
 pnpm build && pnpm typecheck && pnpm lint && pnpm test && pnpm db:check
 ```
 
+## API tests
+
+`pnpm --filter @invoiceflow/api test` needs PostgreSQL. It starts a throwaway cluster from the local
+PostgreSQL binaries, or uses `TEST_DATABASE_URL` (localhost only; **its `public` and `auth` schemas are
+wiped**). `SKIP_DB_TESTS=1` skips setup for quick runs of the non-DB suites.
+
 ## Authentication setup
 
 1. Create a Supabase project and run the migrations (`supabase db push`, or paste `supabase/migrations`
@@ -58,5 +64,6 @@ key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and any
 
 ## Status
 
-Phases 1 (architecture, schema, money library, CI) and 2 (authentication) are complete. Next: Phase 3,
-dashboard, business profile and customers.
+Phases 1 (architecture, schema, money library, CI), 2 (authentication) and 3 (business profile,
+customers, products, tab navigation) are complete. Next: Phase 4, invoices (CRUD, server-side
+calculation, numbering, status machine). The dashboard shows placeholder numbers until then.

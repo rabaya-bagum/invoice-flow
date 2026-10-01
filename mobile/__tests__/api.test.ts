@@ -68,3 +68,40 @@ describe('api client', () => {
     expect(JSON.parse(body as string)).toEqual({ confirm: 'DELETE' });
   });
 });
+
+describe('api client: catalog calls', () => {
+  function capture() {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const client = createApiClient({
+      baseUrl: 'http://api',
+      getToken: async () => 't',
+      refreshToken: async () => null,
+      onSessionExpired: () => {},
+      fetchImpl: (async (url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        return json(200, { items: [], total: 0 });
+      }) as unknown as typeof fetch,
+    });
+    return { client, calls };
+  }
+
+  it('encodes search text and omits empty params', async () => {
+    const { client, calls } = capture();
+    await client.listCustomers({ search: "O'Brien & Sons/100%", limit: 25, offset: 0 });
+    await client.listProducts({ search: '', limit: 25, offset: 50, includeInactive: true });
+    expect(calls[0]?.url).toBe(
+      "http://api/v1/customers?search=O'Brien%20%26%20Sons%2F100%25&limit=25&offset=0",
+    );
+    expect(calls[1]?.url).toBe('http://api/v1/products?limit=25&offset=50&includeInactive=true');
+  });
+
+  it('uses PUT with a JSON body for updates and DELETE without one', async () => {
+    const { client, calls } = capture();
+    await client.updateBusiness({ name: 'X' });
+    await client.deleteCustomer('c1');
+    expect(calls[0]?.init?.method).toBe('PUT');
+    expect(JSON.parse(calls[0]?.init?.body as string)).toEqual({ name: 'X' });
+    expect(calls[1]?.init).toMatchObject({ method: 'DELETE' });
+    expect(calls[1]?.url).toBe('http://api/v1/customers/c1');
+  });
+});

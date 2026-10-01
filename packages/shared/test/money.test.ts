@@ -7,6 +7,8 @@ import {
   parseMoney,
   parseQuantity,
   isSupportedCurrency,
+  parsePercent,
+  formatPercent,
   MoneyError,
 } from '../src';
 
@@ -88,5 +90,26 @@ describe('currency', () => {
     expect(isSupportedCurrency('usd')).toBe(false);
     expect(isSupportedCurrency('XXX')).toBe(false);
     expect(isSupportedCurrency('toString')).toBe(false);
+  });
+});
+
+describe('percent', () => {
+  it('converts to and from basis points', () => {
+    expect(parsePercent('5')).toBe(500);
+    expect(parsePercent('13.5')).toBe(1350);
+    expect(parsePercent('0.25%')).toBe(25);
+    expect(parsePercent('100')).toBe(10000);
+    expect(formatPercent(500)).toBe('5');
+    expect(formatPercent(1350)).toBe('13.5');
+    expect(formatPercent(25)).toBe('0.25');
+    expect(formatPercent(0)).toBe('0');
+    expect(formatPercent(10000)).toBe('100');
+  });
+  it('rejects bad input', () => {
+    for (const bad of ['-1', '100.01', '1.234', 'abc', ''])
+      expect(() => parsePercent(bad)).toThrow(MoneyError);
+  });
+  it('round-trips every valid value', () => {
+    for (let bps = 0; bps <= 10000; bps += 7) expect(parsePercent(formatPercent(bps))).toBe(bps);
   });
 });

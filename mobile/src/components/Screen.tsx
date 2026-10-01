@@ -5,7 +5,14 @@ import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
 
 /** Safe-area + keyboard-aware scrolling container. Content is width-capped for tablets. */
-export function Screen({ children }: { children: ReactNode }) {
+export function Screen({
+  children,
+  centered = true,
+}: {
+  children: ReactNode;
+  /** Vertically centre content (auth screens). Forms pass false to start at the top. */
+  centered?: boolean;
+}) {
   const c = useTheme();
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.background }]}>
@@ -14,7 +21,7 @@ export function Screen({ children }: { children: ReactNode }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, !centered && styles.top]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
@@ -26,6 +33,7 @@ export function Screen({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
+  top: { justifyContent: 'flex-start' },
   root: { flex: 1 },
   content: {
     padding: spacing.lg,

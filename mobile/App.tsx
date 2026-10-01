@@ -1,6 +1,9 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { newQueryClient } from './src/hooks/queries';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { getServices, type Services } from './src/services';
 import { AuthProvider } from './src/store/auth';
@@ -17,6 +20,7 @@ function loadServices(): Services | null {
 const services = loadServices();
 
 export default function App() {
+  const [queryClient] = useState(newQueryClient);
   if (!services) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -30,7 +34,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider services={services}>
-        <RootNavigator />
+        <QueryClientProvider client={queryClient}>
+          <RootNavigator />
+        </QueryClientProvider>
       </AuthProvider>
       <StatusBar style="auto" />
     </SafeAreaProvider>

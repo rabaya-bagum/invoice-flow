@@ -1,3 +1,12 @@
+import type {
+  BusinessProfile,
+  BusinessUpdate,
+  Customer,
+  CustomerInput,
+  Page,
+  Product,
+  ProductInput,
+} from '../models';
 import { classifyError, type ErrorKind } from '../utils/errors';
 
 export class ApiError extends Error {
@@ -69,11 +78,48 @@ export function createApiClient(opts: ApiClientOptions) {
     return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
   }
 
+  const qs = (params: Record<string, string | number | boolean | undefined>) => {
+    const parts = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== '')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
+    return parts.length ? `?${parts.join('&')}` : '';
+  };
+  const body = (method: string, data: unknown): RequestInit => ({
+    method,
+    body: JSON.stringify(data),
+  });
+
   return {
     getMe: () => request<MeResponse>('/v1/me'),
-    deleteAccount: () =>
-      request<void>('/v1/me', { method: 'DELETE', body: JSON.stringify({ confirm: 'DELETE' }) }),
+    deleteAccount: () => request<void>('/v1/me', body('DELETE', { confirm: 'DELETE' })),
+
+    getBusiness: () => request<BusinessProfile>('/v1/business'),
+    updateBusiness: (patch: BusinessUpdate) =>
+      request<BusinessProfile>('/v1/business', body('PUT', patch)),
+
+    listCustomers: (p: ListParams) => request<Page<Customer>>(`/v1/customers${qs({ ...p })}`),
+    getCustomer: (id: string) => request<Customer>(`/v1/customers/${id}`),
+    createCustomer: (input: CustomerInput) =>
+      request<Customer>('/v1/customers', body('POST', input)),
+    updateCustomer: (id: string, input: CustomerInput) =>
+      request<Customer>(`/v1/customers/${id}`, body('PUT', input)),
+    deleteCustomer: (id: string) => request<void>(`/v1/customers/${id}`, { method: 'DELETE' }),
+
+    listProducts: (p: ListParams) => request<Page<Product>>(`/v1/products${qs({ ...p })}`),
+    getProduct: (id: string) => request<Product>(`/v1/products/${id}`),
+    createProduct: (input: ProductInput) => request<Product>('/v1/products', body('POST', input)),
+    updateProduct: (id: string, input: ProductInput) =>
+      request<Product>(`/v1/products/${id}`, body('PUT', input)),
+    deleteProduct: (id: string) => request<void>(`/v1/products/${id}`, { method: 'DELETE' }),
   };
+}
+
+export interface ListParams {
+  search?: string;
+  limit?: number;
+  offset?: number;
+  category?: string;
+  includeInactive?: boolean;
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;

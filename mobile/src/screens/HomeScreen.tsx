@@ -1,11 +1,8 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../components/Button';
 import { Message } from '../components/Message';
 import { StatCard } from '../components/StatCard';
-import type { AppStackParams } from '../navigation/types';
 import type { MeResponse } from '../services/api';
 import { useAuth } from '../store/auth';
 import { spacing } from '../theme';
@@ -13,7 +10,7 @@ import { useTheme } from '../theme/useTheme';
 import { friendlyMessage } from '../utils/errors';
 
 /** Placeholder dashboard until Phase 3: static numbers, real account header. */
-export function HomeScreen({ navigation }: NativeStackScreenProps<AppStackParams, 'Home'>) {
+export function HomeScreen() {
   const { api } = useAuth();
   const c = useTheme();
   const [me, setMe] = useState<MeResponse | null>(null);
@@ -42,11 +39,6 @@ export function HomeScreen({ navigation }: NativeStackScreenProps<AppStackParams
           <StatCard label="Paid" amountMinor={1250000} currency="USD" />
           <StatCard label="Overdue" amountMinor={120000} currency="USD" />
         </View>
-        <Button
-          title="Settings"
-          variant="secondary"
-          onPress={() => navigation.navigate('Settings')}
-        />
       </ScrollView>
     </SafeAreaView>
   );

@@ -2,18 +2,16 @@ import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, useColorScheme } from 'react-native';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
-import { HomeScreen } from '../screens/HomeScreen';
 import { LockScreen } from '../screens/LockScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
 import { VerifyEmailScreen } from '../screens/VerifyEmailScreen';
 import { useAuth } from '../store/auth';
-import type { AppStackParams, AuthStackParams } from './types';
+import { AppTabs } from './AppTabs';
+import type { AuthStackParams } from './types';
 
 const AuthStack = createNativeStackNavigator<AuthStackParams>();
-const AppStack = createNativeStackNavigator<AppStackParams>();
 
 /** Chooses the screen tree from auth state: loading, auth flow, password recovery, lock, app. */
 export function RootNavigator() {
@@ -41,12 +39,7 @@ export function RootNavigator() {
   } else if (locked) {
     content = <LockScreen />;
   } else {
-    content = (
-      <AppStack.Navigator>
-        <AppStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-        <AppStack.Screen name="Settings" component={SettingsScreen} />
-      </AppStack.Navigator>
-    );
+    content = <AppTabs />;
   }
 
   return (

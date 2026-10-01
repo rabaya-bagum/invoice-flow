@@ -14,6 +14,9 @@ describe('error mapping', () => {
     [{ status: 503 }, 'server'],
     [new Error('boom'), 'unknown'],
     [undefined, 'unknown'],
+    [{ kind: 'network', name: 'ApiError' }, 'network'],
+    [{ kind: 'server', status: 500 }, 'server'],
+    [{ kind: 'bogus' }, 'unknown'],
   ])('classifies %p as %s', (err, kind) => {
     expect(classifyError(err)).toBe(kind);
   });
