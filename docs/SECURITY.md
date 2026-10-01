@@ -13,6 +13,7 @@ Get an independent pentest before handling real customers' money.
 | Mass assignment | Zod schemas strip unknown keys. Ownership, status, totals, amounts paid and share tokens are server-controlled. | `security.test.ts` |
 | Money integrity | Integer minor units; server is the only calculator; non-integer, negative and out-of-range amounts are rejected. Invoices with money paid cannot be edited or deleted. | `security.test.ts`, shared money tests |
 | Injection | Parameterised SQL only. The one interpolated value (list status) is an enum validated by zod. `LIKE` search terms are escaped. Public pages escape every user field and use a per-response CSP nonce. | `security.test.ts`, `documents.test.ts` |
+| Public estimate links | Same signed-link scheme with domain separation (`estimate:`), drafts private, answers are row-locked and idempotent, expired/converted refused, per-IP answer rate limit, 2 KB body cap. | `estimate-public.test.ts` |
 | Public links | `id.HMAC(secret, id:salt)`, constant-time compare, revocable, rate limited. Viewing is an explicit POST, not a GET. | `documents.test.ts` |
 | Payments | Webhook verifies the Stripe signature on the raw body, dedupes event ids in the same transaction, one pending payment per invoice (unique index + row lock + idempotency keys). | `payments.test.ts`, `security.test.ts` |
 | Abuse | Rate limits: per IP on `/v1`, tighter on public routes and payment intents, per user on email sending. Body limits: 100 KB JSON, 1 MB images, 2 KB payment-intent body. | `app.test.ts`, `documents.test.ts` |

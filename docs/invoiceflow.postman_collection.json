@@ -1049,6 +1049,46 @@
           }
         },
         {
+          "name": "POST /v1/estimates/{id}/share-link",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/estimates/:id/share-link",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id", "share-link"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ],
+              "query": []
+            },
+            "description": "Create (or return) the customer-facing estimate link"
+          }
+        },
+        {
+          "name": "DELETE /v1/estimates/{id}/share-link",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/estimates/:id/share-link",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "estimates", ":id", "share-link"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{id}}"
+                }
+              ],
+              "query": []
+            },
+            "description": "Revoke the estimate link"
+          }
+        },
+        {
           "name": "POST /v1/estimates/{id}/pdf",
           "request": {
             "method": "POST",
@@ -1579,6 +1619,121 @@
               "query": []
             },
             "description": "Start a payment from the public page"
+          }
+        },
+        {
+          "name": "GET /estimate/{token}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/estimate/:token",
+              "host": ["{{baseUrl}}"],
+              "path": ["estimate", ":token"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "{{token}}"
+                }
+              ],
+              "query": []
+            },
+            "description": "Customer-facing estimate page (HTML) with Accept / Decline"
+          }
+        },
+        {
+          "name": "GET /public/estimates/{token}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/public/estimates/:token",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "estimates", ":token"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "{{token}}"
+                }
+              ],
+              "query": []
+            },
+            "description": "Sanitised estimate JSON"
+          }
+        },
+        {
+          "name": "GET /public/estimates/{token}/pdf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/public/estimates/:token/pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "estimates", ":token", "pdf"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "{{token}}"
+                }
+              ],
+              "query": []
+            },
+            "description": "Estimate PDF"
+          }
+        },
+        {
+          "name": "POST /public/estimates/{token}/view",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/public/estimates/:token/view",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "estimates", ":token", "view"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "{{token}}"
+                }
+              ],
+              "query": []
+            },
+            "description": "Record that the customer viewed the estimate"
+          }
+        },
+        {
+          "name": "POST /public/estimates/{token}/respond",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/public/estimates/:token/respond",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "estimates", ":token", "respond"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "{{token}}"
+                }
+              ],
+              "query": []
+            },
+            "description": "Customer accepts or declines ({decision: accept|decline, name?}); the same answer twice is a no-op, the opposite answer is 409"
           }
         },
         {

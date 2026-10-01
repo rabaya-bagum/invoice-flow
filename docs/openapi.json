@@ -3176,6 +3176,112 @@
         ]
       }
     },
+    "/v1/estimates/{id}/share-link": {
+      "post": {
+        "tags": ["Estimates"],
+        "summary": "Create (or return) the customer-facing estimate link",
+        "operationId": "post_v1_estimates_id_share_link",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also returned for another business's ids)"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "supabaseJwt": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": ["Estimates"],
+        "summary": "Revoke the estimate link",
+        "operationId": "delete_v1_estimates_id_share_link",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found (also returned for another business's ids)"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "security": [
+          {
+            "supabaseJwt": []
+          }
+        ]
+      }
+    },
     "/v1/estimates/{id}/pdf": {
       "post": {
         "tags": ["Estimates"],
@@ -4271,6 +4377,186 @@
         "tags": ["Public"],
         "summary": "Start a payment from the public page",
         "operationId": "post_public_invoices_token_payment_intent",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "security": []
+      }
+    },
+    "/estimate/{token}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Customer-facing estimate page (HTML) with Accept / Decline",
+        "operationId": "get_estimate_token",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "security": []
+      }
+    },
+    "/public/estimates/{token}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Sanitised estimate JSON",
+        "operationId": "get_public_estimates_token",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "security": []
+      }
+    },
+    "/public/estimates/{token}/pdf": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Estimate PDF",
+        "operationId": "get_public_estimates_token_pdf",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "security": []
+      }
+    },
+    "/public/estimates/{token}/view": {
+      "post": {
+        "tags": ["Public"],
+        "summary": "Record that the customer viewed the estimate",
+        "operationId": "post_public_estimates_token_view",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        },
+        "security": []
+      }
+    },
+    "/public/estimates/{token}/respond": {
+      "post": {
+        "tags": ["Public"],
+        "summary": "Customer accepts or declines ({decision: accept|decline, name?}); the same answer twice is a no-op, the opposite answer is 409",
+        "operationId": "post_public_estimates_token_respond",
         "parameters": [
           {
             "name": "token",

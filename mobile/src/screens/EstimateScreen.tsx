@@ -25,6 +25,7 @@ import type { InvoicesStackParams } from '../navigation/types';
 import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
 import { estimateAsInvoice } from '../utils/estimate';
+import { formatDate } from '../utils/format';
 import { invoiceToForm, newInvoiceForm } from '../utils/invoice-form';
 
 type Tab = 'edit' | 'preview';
@@ -93,6 +94,9 @@ export function EstimateScreen({
         <ChipRow label="Estimate sections" options={tabs} value={tab} onChange={setTab} />
       ) : null}
       {act.error ? <Message kind="error">{act.error}</Message> : null}
+      {est && (est.status === 'accepted' || est.status === 'rejected') && est.decidedAt ? (
+        <Message kind="info">{`${est.status === 'accepted' ? 'Accepted' : 'Declined'}${est.decidedByName ? ` by ${est.decidedByName}` : ''} on ${formatDate(est.decidedAt.slice(0, 10))}.`}</Message>
+      ) : null}
       {est?.convertedInvoiceId ? (
         <Message kind="info">This estimate was turned into an invoice.</Message>
       ) : null}
@@ -216,7 +220,7 @@ function EstimatePreview({
   business: BusinessProfile;
   onSend: () => void;
 }) {
-  const actions = useEstimateActions(est);
+  const actions = useEstimateActions(est, business.name);
   const sendable = ['draft', 'sent', 'viewed'].includes(est.status) && !est.convertedInvoiceId;
   return (
     <View style={{ gap: spacing.md }}>
@@ -235,6 +239,14 @@ function EstimatePreview({
         onPress={() => void actions.sharePdf()}
         disabled={actions.loading}
       />
+      {est.status !== 'draft' ? (
+        <Button
+          title="Share link"
+          variant="secondary"
+          onPress={() => void actions.shareLink()}
+          disabled={actions.loading}
+        />
+      ) : null}
     </View>
   );
 }

@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { sendInvoiceInputSchema } from '@invoiceflow/shared';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
+import { renderEstimatePage } from '../public/estimate-page';
 import { payPageCsp, renderPayPage } from '../public/pay-page';
 import type { AssetKind, DocumentService } from '../services/document-service';
 import type { PaymentService } from '../services/payment-service';
@@ -37,6 +39,12 @@ export function createDocumentController(svc: DocumentService) {
     async estimatePdf(req: Request, res: Response) {
       const { number, bytes } = await svc.estimatePdf(businessId(req), idParam(req));
       sendPdf(res, number, bytes);
+    },
+    estimateShareLink: async (req: Request, res: Response) =>
+      void res.json(await svc.estimateShareLink(businessId(req), idParam(req))),
+    async estimateRevokeShareLink(req: Request, res: Response) {
+      await svc.estimateRevokeShareLink(actor(req), idParam(req));
+      res.status(204).end();
     },
     async estimateSend(req: Request, res: Response) {
       res.json(
@@ -169,6 +177,108 @@ export function createPublicController(svc: DocumentService, payments: PaymentSe
         .set('Content-Security-Policy', payPageCsp(nonce, Boolean(stripe)))
         .type('html')
         .send(renderPayPage(v, { token: token(req), nonce, logoDataUri: logo, stripe }));
+    },
+  };
+}
+
+const respondSchema = z.object({
+  decision: z.enum(['accept', 'decline']),
+  name: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((v) => v || null),
+});
+
+/** Unauthenticated, token-gated estimate access. Every bad link is an identical 404. */
+export function createPublicEstimateController(svc: DocumentService) {
+  const noStore = (res: Response) =>
+    res.set({
+      'Cache-Control': 'no-store',
+      'X-Robots-Tag': 'noindex, nofollow',
+      'Referrer-Policy': 'no-referrer',
+    });
+  const token = (req: Request) => String(req.params.token ?? '');
+  return {
+    async json(req: Request, res: Response) {
+      const v = await svc.estimatePublicView(token(req));
+      if (!v) throw notFound();
+      const { estimate: e, business: b, customer: c } = v;
+      noStore(res).json({
+        number: e.number,
+        status: e.status,
+        displayStatus: e.displayStatus,
+        issueDate: e.issueDate,
+        expiryDate: e.expiryDate,
+        currency: e.currency,
+        taxInclusive: e.taxInclusive,
+        notes: e.notes,
+        terms: e.terms,
+        subtotalMinor: e.subtotalMinor,
+        discountTotalMinor: e.discountTotalMinor,
+        taxBreakdown: e.taxBreakdown,
+        feesMinor: e.feesMinor,
+        totalMinor: e.totalMinor,
+        respondable: v.respondable,
+        decidedAt: e.decidedAt,
+        items: e.items.map((i) => ({
+          description: i.description,
+          quantityMilli: i.quantityMilli,
+          unitPriceMinor: i.unitPriceMinor,
+          taxes: i.taxes,
+          lineTotalMinor: i.lineTotalMinor,
+        })),
+        business: {
+          name: b.name,
+          email: b.email,
+          phone: b.phone,
+          website: b.website,
+          accentColor: b.accentColor,
+        },
+        customer: { name: c.name },
+      });
+    },
+    async pdf(req: Request, res: Response) {
+      const out = await svc.estimatePublicPdf(token(req));
+      if (!out) throw notFound();
+      noStore(res);
+      sendPdf(res, out.number, out.bytes);
+    },
+    async view(req: Request, res: Response) {
+      await svc.estimateRecordView(token(req));
+      noStore(res).status(204).end(); // same response whether or not the token was valid
+    },
+    async respond(req: Request, res: Response) {
+      const body = respondSchema.parse(req.body ?? {});
+      const out = await svc.estimateRespond(
+        token(req),
+        body.decision === 'accept' ? 'accepted' : 'rejected',
+        body.name,
+        req.ip,
+      );
+      if (!out) throw notFound();
+      noStore(res).json({ status: out.status, decidedAt: out.decidedAt });
+    },
+    async page(req: Request, res: Response) {
+      const v = await svc.estimatePublicView(token(req));
+      if (!v) {
+        noStore(res)
+          .status(404)
+          .type('html')
+          .send(
+            '<!doctype html><meta charset="utf-8"><title>Not found</title><p style="font-family:sans-serif;padding:24px">This estimate link is not valid.</p>',
+          );
+        return;
+      }
+      const nonce = randomBytes(16).toString('base64');
+      const logo = v.logo
+        ? `data:${v.logo[0] === 0x89 ? 'image/png' : 'image/jpeg'};base64,${v.logo.toString('base64')}`
+        : null;
+      noStore(res)
+        .set('Content-Security-Policy', payPageCsp(nonce, false))
+        .type('html')
+        .send(renderEstimatePage(v, { token: token(req), nonce, logoDataUri: logo }));
     },
   };
 }

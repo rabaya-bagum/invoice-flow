@@ -130,6 +130,8 @@ export function createApiClient(opts: ApiClientOptions) {
       request<{ estimate: Estimate; invoice: Invoice }>(`/v1/estimates/${id}/convert`, {
         method: 'POST',
       }),
+    createEstimateShareLink: (id: string) =>
+      request<{ url: string }>(`/v1/estimates/${id}/share-link`, { method: 'POST' }),
     sendEstimate: (id: string, input: SendInvoiceInput) =>
       request<{ estimate: Estimate; sentTo: string }>(
         `/v1/estimates/${id}/send`,

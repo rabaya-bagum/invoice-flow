@@ -225,10 +225,8 @@
 - An estimate prices exactly like an invoice (same shared calculator, same line/discount/tax rules);
   `dueDate` becomes `expiryDate`. Numbering is a separate `EST-0001` sequence (the schema already had
   one per business and kind).
-- Statuses: draft -> sent -> accepted | declined(`rejected` in the API). `viewed` exists in the enum but
-  nothing sets it yet because there is no customer-facing estimate page. **The owner records the
-  customer's decision by hand** ("Mark accepted / declined"). A customer-facing page with an Accept
-  button (signed link, like invoices) is the natural next step and is not built.
+- Statuses: draft -> sent -> viewed -> accepted | declined (`rejected` in the API). The customer can answer
+  on the public page (Phase 12), or the owner records the answer by hand ("Mark accepted / declined").
 - "Expired" is derived (sent/viewed with an expiry date before today in the business timezone), like
   "overdue"; it is filterable but never stored. An expired estimate can still be accepted or converted,
   because a customer may say yes late and the owner decides.
@@ -239,12 +237,31 @@
   be converted. The estimate stays as a record and is read-only afterwards. The accepted estimate is not
   automatically converted; that is a deliberate owner action.
 - The estimate PDF reuses the invoice renderer (`kind: 'estimate'`: "ESTIMATE", "Valid until", no
-  paid/balance rows, no payment information or pay link). The email attaches the PDF only; there is no
-  link because estimates have no public page.
+  paid/balance rows, no payment information or pay link). The email attaches the PDF and, since Phase 12,
+  links to the customer page.
 - No activity timeline or push notifications for estimates yet (those tables are invoice-specific);
   changes are written to the audit log.
 - Mobile: estimates live in the Invoices stack (More > Estimates, the "+" menu, and the Convert flow
   jumps to the new invoice). The invoice form and document components are reused through a `kind` prop.
+
+## Customer-facing estimates (Phase 12)
+- Links work like invoice links: `<estimateId>.<HMAC(secret, "estimate:" id:salt)>`, salt in
+  `estimates.public_token`, revocable (clear the salt). The `estimate:` prefix is domain separation, so an
+  invoice link can never open an estimate or the reverse (tested). Routes: `/estimate/:token` (page),
+  `/public/estimates/:token[/pdf|/view|/respond]`. Drafts are never public. Every bad link is the same 404.
+- Viewing is recorded by an explicit POST from the page's script (not by fetching it, so link-preview bots
+  change nothing): sent -> viewed once, owner notified once.
+- **Respond** (`accept` | `decline`, optional typed name <= 100 chars): the estimate row is locked. The same
+  answer twice is a no-op (first name and time stand, one notification); the opposite answer after a
+  decision is `409 ALREADY_DECIDED`; an expired (`ESTIMATE_EXPIRED`) or converted estimate is refused. The
+  owner can still record a late yes by hand on an expired one; customers cannot.
+- This is a **click-to-accept, not a legal e-signature**: the typed name is not verified, and the record is
+  the time, the typed name and the IP in the audit log. If you need signatures that hold up (contracts,
+  large jobs), use a dedicated e-signature service.
+- Accepting never converts or charges anything; the owner converts. Owner gets an `estimate_viewed` /
+  `estimate_accepted` / `estimate_declined` notification (push + centre); tapping opens the estimate.
+- Abuse limits: public routes per IP (`PUBLIC_RATE_LIMIT_PER_MINUTE`), answers per IP
+  (`RESPOND_RATE_LIMIT_PER_MINUTE`, default 10), 2 KB body cap, strict nonce CSP with no third-party hosts.
 
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.

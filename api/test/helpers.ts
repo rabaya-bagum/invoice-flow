@@ -63,7 +63,13 @@ export function sign(
 }
 
 const config = (extra: Record<string, string> = {}) =>
-  loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent', RATE_LIMIT_PER_MINUTE: '100000', ...extra });
+  loadConfig({
+    NODE_ENV: 'test',
+    LOG_LEVEL: 'silent',
+    RATE_LIMIT_PER_MINUTE: '100000',
+    RESPOND_RATE_LIMIT_PER_MINUTE: '100000',
+    ...extra,
+  });
 
 /** A dependency that fails loudly if a test unexpectedly reaches it. */
 function unused<T extends object>(name: string): T {

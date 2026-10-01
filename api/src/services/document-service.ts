@@ -88,6 +88,16 @@ export function createDocumentService(deps: Deps) {
     return { estimate, business, customer, logo, signature };
   }
 
+  const estimateUrl = (token: string) =>
+    `${config.PUBLIC_APP_URL.replace(/\/$/, '')}/estimate/${token}`;
+  const ESTIMATE_KIND = 'estimate';
+
+  async function estimateShareToken(businessId: string, id: string) {
+    const salt = await createEstimateRepository(db).ensureShareSalt(businessId, id, newSalt());
+    if (!salt) throw notFound('Estimate');
+    return makeToken(config.linkSecret, id, salt, ESTIMATE_KIND);
+  }
+
   const assetKey = (businessId: string, kind: AssetKind) => `${businessId}/${kind}`;
   const payUrl = (token: string) => `${config.PUBLIC_APP_URL.replace(/\/$/, '')}/pay/${token}`;
 
@@ -189,6 +199,8 @@ export function createDocumentService(deps: Deps) {
         message: input.message ?? defaults.message,
         businessName: d.business.name,
         documentName: 'estimate',
+        payUrl: estimateUrl(await estimateShareToken(actor.businessId, id)),
+        linkLabel: 'View estimate',
       });
       try {
         await email.send({
@@ -218,6 +230,105 @@ export function createDocumentService(deps: Deps) {
         });
       });
       return { estimate: await estimateService().get(actor.businessId, id), sentTo: to };
+    },
+
+    async estimateShareLink(businessId: string, id: string) {
+      await estimateService().get(businessId, id); // 404 if not theirs
+      return { url: estimateUrl(await estimateShareToken(businessId, id)) };
+    },
+
+    async estimateRevokeShareLink(actor: Actor, id: string) {
+      await estimateService().get(actor.businessId, id);
+      const r = createEstimateRepository(db);
+      await r.clearShareSalt(actor.businessId, id);
+      await r.addAudit({
+        businessId: actor.businessId,
+        userId: actor.userId,
+        action: 'estimate.share_revoked',
+        entityId: id,
+        ip: actor.ip,
+      });
+    },
+
+    /** Same rules as invoice links: any problem is one identical "not found". */
+    async estimateResolve(
+      token: string,
+    ): Promise<{ businessId: string; estimateId: string } | null> {
+      const parsed = parseToken(token);
+      if (!parsed) return null;
+      const found = await createEstimateRepository(db).publicLookup(parsed.invoiceId);
+      if (
+        !found?.salt ||
+        !verifyToken(config.linkSecret, parsed.invoiceId, found.salt, parsed.mac, ESTIMATE_KIND)
+      )
+        return null;
+      return { businessId: found.businessId, estimateId: parsed.invoiceId };
+    },
+
+    async estimatePublicView(token: string) {
+      const ref = await this.estimateResolve(token);
+      if (!ref) return null;
+      const doc = await loadEstimate(ref.businessId, ref.estimateId);
+      if (doc.estimate.status === 'draft') return null; // drafts are never public
+      const e = doc.estimate;
+      return {
+        ...doc,
+        respondable:
+          (e.status === 'sent' || e.status === 'viewed') &&
+          !e.convertedInvoiceId &&
+          e.displayStatus !== 'expired',
+      };
+    },
+
+    async estimatePublicPdf(token: string) {
+      const v = await this.estimatePublicView(token);
+      if (!v) return null;
+      try {
+        return {
+          number: v.estimate.number,
+          bytes: await render(
+            estimatePdfInput(v.estimate, v.business, v.customer, v.logo, v.signature),
+          ),
+        };
+      } catch {
+        throw new AppError(500, 'PDF_FAILED', 'The PDF could not be generated');
+      }
+    },
+
+    /** Called by the estimate page's script after it renders (link-preview crawlers don't run it). */
+    async estimateRecordView(token: string): Promise<boolean> {
+      const ref = await this.estimateResolve(token);
+      if (!ref) return false;
+      const changed = await db.transaction(async (tx) => {
+        const r = createEstimateRepository(tx);
+        const changed = await r.markViewed(ref.businessId, ref.estimateId);
+        if (changed) {
+          const est = await r.get(ref.businessId, ref.estimateId);
+          await createNotificationRepository(tx).add({
+            businessId: ref.businessId,
+            type: 'estimate_viewed',
+            title: 'Estimate viewed',
+            body: `Estimate ${est?.number} has been viewed by ${est?.customerName}.`,
+            data: { estimateId: ref.estimateId },
+          });
+        }
+        return changed;
+      });
+      if (changed) deps.afterNotify?.();
+      return changed;
+    },
+
+    async estimateRespond(
+      token: string,
+      decision: 'accepted' | 'rejected',
+      name: string | null,
+      ip?: string,
+    ) {
+      const ref = await this.estimateResolve(token);
+      if (!ref) return null;
+      const out = await estimateService().respond(ref, decision, name, ip);
+      if (out.changed) deps.afterNotify?.();
+      return out;
     },
 
     async shareLink(businessId: string, id: string) {

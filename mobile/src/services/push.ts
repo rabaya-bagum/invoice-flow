@@ -86,14 +86,16 @@ export async function unregisterPush(api: Pick<ApiClient, 'removePushToken'>): P
 
 export interface NotificationTarget {
   tab: 'InvoicesTab';
-  screen: 'Invoice';
+  screen: 'Invoice' | 'Estimate';
   params: { id: string };
 }
 
-/** Where tapping a notification should go (everything we send is about an invoice). */
+/** Where tapping a notification should go: the invoice or estimate it is about. */
 export function routeForNotification(data: unknown): NotificationTarget | null {
-  const id = (data as { invoiceId?: unknown } | null | undefined)?.invoiceId;
-  return typeof id === 'string' && id.length > 0
-    ? { tab: 'InvoicesTab', screen: 'Invoice', params: { id } }
-    : null;
+  const d = data as { invoiceId?: unknown; estimateId?: unknown } | null | undefined;
+  if (typeof d?.invoiceId === 'string' && d.invoiceId.length > 0)
+    return { tab: 'InvoicesTab', screen: 'Invoice', params: { id: d.invoiceId } };
+  if (typeof d?.estimateId === 'string' && d.estimateId.length > 0)
+    return { tab: 'InvoicesTab', screen: 'Estimate', params: { id: d.estimateId } };
+  return null;
 }

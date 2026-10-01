@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import * as Print from 'expo-print';
-import { Alert } from 'react-native';
+import { Alert, Share } from 'react-native';
 import { EstimateListScreen } from '../src/screens/EstimateListScreen';
 import { EstimateScreen } from '../src/screens/EstimateScreen';
 import { SendEstimateScreen } from '../src/screens/SendEstimateScreen';
@@ -285,6 +285,71 @@ describe('EstimateScreen: existing estimate', () => {
     await open();
     await fireEvent.press(screen.getByRole('button', { name: 'Mark as sent' }));
     expect(await screen.findByText(/cannot become sent|went wrong|try again/i)).toBeTruthy();
+  });
+});
+
+describe('EstimateScreen: customer link and decision', () => {
+  const open = async (est = estimateDetail({ status: 'sent', displayStatus: 'sent' })) => {
+    const api = setupApi({
+      getBusiness: jest.fn(async () => ({ ...business, name: 'Acme Studio' })),
+      listTaxRates: jest.fn(async () => ({ items: [gst] })),
+      getEstimate: jest.fn(async () => est),
+      createEstimateShareLink: jest.fn(async () => ({ url: 'https://api.test/estimate/abc.def' })),
+      listCustomers: jest.fn(async () => ({ items: [], total: 0 })),
+      listProducts: jest.fn(async () => ({ items: [], total: 0 })),
+    });
+    await renderWithQuery(
+      <EstimateScreen navigation={nav() as never} route={{ params: { id: 'e1' } } as never} />,
+    );
+    await screen.findByText('EST-0001');
+    return api;
+  };
+
+  it('shares the customer link from the preview', async () => {
+    const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
+    const api = await open();
+    await fireEvent.press(screen.getByRole('button', { name: 'Preview' }));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Share link' }));
+    await waitFor(() => expect(api.createEstimateShareLink).toHaveBeenCalledWith('e1'));
+    await waitFor(() =>
+      expect(share).toHaveBeenCalledWith({
+        message: 'Estimate EST-0001 from Acme Studio: https://api.test/estimate/abc.def',
+      }),
+    );
+    share.mockRestore();
+  });
+
+  it('has no link for a draft', async () => {
+    await open(estimateDetail());
+    await fireEvent.press(screen.getByRole('button', { name: 'Preview' }));
+    await screen.findByRole('button', { name: 'Preview PDF' });
+    expect(screen.queryByRole('button', { name: 'Share link' })).toBeNull();
+  });
+
+  it("shows the customer's online answer", async () => {
+    await open(
+      estimateDetail({
+        status: 'accepted',
+        displayStatus: 'accepted',
+        editable: false,
+        decidedAt: '2026-10-05T14:00:00.000Z',
+        decidedByName: 'Ann Lee',
+      }),
+    );
+    expect(screen.getByText('Accepted by Ann Lee on Oct 5, 2026.')).toBeTruthy();
+  });
+
+  it('shows an owner-recorded decision without a name', async () => {
+    await open(
+      estimateDetail({
+        status: 'rejected',
+        displayStatus: 'rejected',
+        editable: false,
+        convertible: false,
+        decidedAt: '2026-10-06T09:00:00.000Z',
+      }),
+    );
+    expect(screen.getByText('Declined on Oct 6, 2026.')).toBeTruthy();
   });
 });
 

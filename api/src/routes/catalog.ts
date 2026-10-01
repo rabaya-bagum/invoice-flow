@@ -65,6 +65,8 @@ export function createCatalogRouter(c: {
   r.post('/estimates/:id/transition', c.estimates.transition);
   r.post('/estimates/:id/convert', c.estimates.convert);
   r.post('/estimates/:id/pdf', c.documents.estimatePdf);
+  r.post('/estimates/:id/share-link', c.documents.estimateShareLink);
+  r.delete('/estimates/:id/share-link', c.documents.estimateRevokeShareLink);
   r.post('/estimates/:id/send', c.sendLimiter, c.documents.estimateSend);
 
   const image = raw({ type: ['image/png', 'image/jpeg'], limit: 1_000_000 });

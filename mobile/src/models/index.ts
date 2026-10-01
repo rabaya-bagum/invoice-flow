@@ -214,6 +214,10 @@ export interface Estimate extends EstimateSummary {
   notes: string | null;
   terms: string | null;
   version: number;
+  viewedAt: string | null;
+  decidedAt: string | null;
+  /** What the customer typed when answering online; null when the owner recorded it. */
+  decidedByName: string | null;
   items: InvoiceItem[];
   taxBreakdown: Array<{ name: string; rateBps: number; taxableAmount: number; tax: number }>;
   editable: boolean;

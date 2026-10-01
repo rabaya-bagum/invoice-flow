@@ -21,6 +21,7 @@ import {
   type EstimateWrite,
 } from '../repositories/estimate-repository';
 import { createInvoiceRepository } from '../repositories/invoice-repository';
+import { createNotificationRepository } from '../repositories/notification-repository';
 import { AppError, notFound } from '../utils/errors';
 import { computeTotals, type Actor, type InvoiceService } from './invoice-service';
 
@@ -257,6 +258,79 @@ export function createEstimateService(db: Database, invoices: InvoiceService) {
     },
 
     /**
+     * The customer's answer from the public page. The row is locked, so two taps (or a tap and the
+     * owner's own change) cannot both win. Repeating the SAME answer is a harmless no-op; the opposite
+     * answer after a decision, an expired estimate, or a converted one is refused.
+     */
+    async respond(
+      ref: { businessId: string; estimateId: string },
+      decision: CustomerDecision,
+      name: string | null,
+      ip?: string,
+    ): Promise<{ status: string; decidedAt: string | null; changed: boolean }> {
+      const { businessId, estimateId } = ref;
+      return db.transaction(async (tx) => {
+        const r = repo(tx);
+        const current = await r.lock(businessId, estimateId);
+        if (!current) throw notFound('Estimate');
+        const said = (s: string) => (s === 'accepted' ? 'accepted' : 'declined');
+        const decided = async () => (await r.get(businessId, estimateId)) as EstimateRecord;
+
+        if (current.status === decision) {
+          const e = await decided();
+          return { status: e.status, decidedAt: e.decidedAt, changed: false };
+        }
+        if (current.status === 'accepted' || current.status === 'rejected') {
+          throw new AppError(
+            409,
+            'ALREADY_DECIDED',
+            `This estimate was already ${said(current.status)}. Please contact the sender to change it.`,
+          );
+        }
+        if (current.convertedInvoiceId) {
+          throw new AppError(
+            409,
+            'ALREADY_CONVERTED',
+            'This estimate has already been turned into an invoice.',
+          );
+        }
+        if (current.status === 'draft') throw notFound('Estimate');
+
+        const est = await decided();
+        const business = await createBusinessRepository(tx).get(businessId);
+        if (!business) throw notFound('Business');
+        if (est.expiryDate < todayInTimezone(business.timezone)) {
+          throw new AppError(
+            409,
+            'ESTIMATE_EXPIRED',
+            'This estimate has expired. Please contact the sender.',
+          );
+        }
+
+        await r.setStatus(businessId, estimateId, decision);
+        await r.setDecisionName(businessId, estimateId, name);
+        await r.addAudit({
+          businessId,
+          userId: null,
+          action: `estimate.${decision}_by_customer`,
+          entityId: estimateId,
+          ip,
+          metadata: { name },
+        });
+        const who = name || est.customerName;
+        await createNotificationRepository(tx).add({
+          businessId,
+          type: decision === 'accepted' ? 'estimate_accepted' : 'estimate_declined',
+          title: decision === 'accepted' ? 'Estimate accepted' : 'Estimate declined',
+          body: `${who} ${said(decision)} estimate ${est.number}.`,
+          data: { estimateId },
+        });
+        const after = await decided();
+        return { status: after.status, decidedAt: after.decidedAt, changed: true };
+      });
+    },
+
+    /**
      * Turns an estimate into a DRAFT invoice with the same lines, in one transaction. The estimate is
      * locked first, so two taps (or two devices) can never create two invoices.
      */
@@ -317,3 +391,5 @@ export function createEstimateService(db: Database, invoices: InvoiceService) {
   };
 }
 export type EstimateService = ReturnType<typeof createEstimateService>;
+
+export type CustomerDecision = 'accepted' | 'rejected';

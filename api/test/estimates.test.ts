@@ -300,7 +300,7 @@ describe('estimate PDF and email', () => {
     expect((await pdfText(res.body)).text).toContain('ACCEPTED');
   });
 
-  it('emails the PDF with no pay link and marks a draft as sent', async () => {
+  it('emails the PDF with a view link (no pay link) and marks a draft as sent', async () => {
     const a = await account();
     await a.call('put', '/v1/business').send({ name: 'Acme Studio', email: 'owner@acme.test' });
     const e = await a.estimate();
@@ -313,6 +313,8 @@ describe('estimate PDF and email', () => {
     expect(mail.subject).toBe(`Estimate ${e.number} from Acme Studio`);
     expect(mail.text).toContain(`attached estimate ${e.number} for $1,050.00`);
     expect(mail.text).not.toContain('/pay/');
+    expect(mail.text).toContain('/estimate/');
+    expect(mail.html).toContain('View estimate</a>');
     expect(mail.html).not.toContain('View invoice');
     expect(mail.html).toContain('estimate PDF is attached');
     expect(mail.attachments[0]!.filename).toBe(`${e.number}.pdf`);

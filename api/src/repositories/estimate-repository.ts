@@ -36,6 +36,9 @@ export interface EstimateRecord extends EstimateSummary {
   terms: string | null;
   version: number;
   createdAt: string;
+  viewedAt: string | null;
+  decidedAt: string | null;
+  decidedByName: string | null;
   items: InvoiceItemRecord[];
 }
 
@@ -84,7 +87,8 @@ const SUMMARY = `e.id, e.number, e.status, ${DISPLAY_STATUS} AS "displayStatus",
 const DETAIL = `${SUMMARY}, c.email AS "customerEmail", e.tax_inclusive AS "taxInclusive",
   e.discount_type AS "discountType", e.discount_value AS "discountValue", e.fees_minor AS "feesMinor",
   e.subtotal_minor AS "subtotalMinor", e.discount_total_minor AS "discountTotalMinor",
-  e.tax_total_minor AS "taxTotalMinor", e.notes, e.terms, e.version, e.created_at AS "createdAt"`;
+  e.tax_total_minor AS "taxTotalMinor", e.notes, e.terms, e.version, e.created_at AS "createdAt",
+  e.viewed_at AS "viewedAt", e.decided_at AS "decidedAt", e.decided_by_name AS "decidedByName"`;
 
 const FROM = `FROM estimates e
   JOIN business_profiles b ON b.id = e.business_id
@@ -111,6 +115,15 @@ export interface EstimateRepository {
   replace(businessId: string, id: string, w: EstimateWrite): Promise<void>;
   setStatus(businessId: string, id: string, status: EstimateStatus): Promise<void>;
   markConverted(businessId: string, id: string, invoiceId: string): Promise<void>;
+  /** Returns the estimate's share salt, creating one if none exists. */
+  ensureShareSalt(businessId: string, id: string, newSalt: string): Promise<string | null>;
+  clearShareSalt(businessId: string, id: string): Promise<void>;
+  /** Public access: looks up by id only. The caller must verify the signed token before use. */
+  publicLookup(id: string): Promise<{ businessId: string; salt: string | null } | null>;
+  /** sent -> viewed, once. Returns true if this call changed the status. */
+  markViewed(businessId: string, id: string): Promise<boolean>;
+  /** Records who decided (a customer's typed name, or null for the owner) and when. */
+  setDecisionName(businessId: string, id: string, name: string | null): Promise<void>;
   delete(businessId: string, id: string): Promise<void>;
   addAudit(e: {
     businessId: string;
@@ -223,6 +236,11 @@ export function createEstimateRepository(db: Queryable): EstimateRepository {
          FROM estimate_items WHERE estimate_id = $1 AND business_id = $2 ORDER BY position`,
         [id, businessId],
       );
+      // pg returns timestamptz as Date; the API and page work with ISO strings.
+      for (const k of ['viewedAt', 'decidedAt'] as const) {
+        const v = est[k] as unknown;
+        est[k] = v instanceof Date ? v.toISOString() : (v as string | null);
+      }
       est.items = items.rows.map(({ quantity, ...rest }) => ({
         ...rest,
         quantityMilli: parseQuantity(quantity),
@@ -291,7 +309,9 @@ export function createEstimateRepository(db: Queryable): EstimateRepository {
 
     async setStatus(businessId, id, status) {
       await db.query(
-        `UPDATE estimates SET status = $3::estimate_status, version = version + 1
+        `UPDATE estimates SET status = $3::estimate_status, version = version + 1,
+           decided_at = CASE WHEN $3::estimate_status IN ('accepted', 'rejected')
+                             THEN coalesce(decided_at, now()) ELSE decided_at END
          WHERE id = $1 AND business_id = $2`,
         [id, businessId, status],
       );
@@ -302,6 +322,47 @@ export function createEstimateRepository(db: Queryable): EstimateRepository {
         `UPDATE estimates SET converted_invoice_id = $3, version = version + 1
          WHERE id = $1 AND business_id = $2`,
         [id, businessId, invoiceId],
+      );
+    },
+
+    async ensureShareSalt(businessId, id, newSalt) {
+      const r = await db.query<{ public_token: string }>(
+        `UPDATE estimates SET public_token = coalesce(public_token, $3)
+         WHERE id = $1 AND business_id = $2 RETURNING public_token`,
+        [id, businessId, newSalt],
+      );
+      return r.rows[0]?.public_token ?? null;
+    },
+
+    async clearShareSalt(businessId, id) {
+      await db.query(
+        'UPDATE estimates SET public_token = NULL WHERE id = $1 AND business_id = $2',
+        [id, businessId],
+      );
+    },
+
+    async publicLookup(id) {
+      const r = await db.query<{ business_id: string; public_token: string | null }>(
+        'SELECT business_id, public_token FROM estimates WHERE id = $1',
+        [id],
+      );
+      const row = r.rows[0];
+      return row ? { businessId: row.business_id, salt: row.public_token } : null;
+    },
+
+    async markViewed(businessId, id) {
+      const r = await db.query(
+        `UPDATE estimates SET status = 'viewed', viewed_at = now(), version = version + 1
+         WHERE id = $1 AND business_id = $2 AND status = 'sent'`,
+        [id, businessId],
+      );
+      return (r.rowCount ?? 0) > 0;
+    },
+
+    async setDecisionName(businessId, id, name) {
+      await db.query(
+        'UPDATE estimates SET decided_by_name = $3 WHERE id = $1 AND business_id = $2',
+        [id, businessId, name],
       );
     },
 

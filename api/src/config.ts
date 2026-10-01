@@ -26,6 +26,8 @@ const schema = z.object({
   STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   /** Platform fee on each online payment, in basis points (250 = 2.5%). */
   PLATFORM_FEE_BPS: z.coerce.number().int().min(0).max(2000).default(0),
+  /** Estimate accept/decline answers per minute per IP on the public page. */
+  RESPOND_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
   /** Creating payment intents per minute per IP on the public page. */
   PAYMENT_INTENT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
   /** Contents of Stripe's Apple Pay domain association file, served at /.well-known/. */

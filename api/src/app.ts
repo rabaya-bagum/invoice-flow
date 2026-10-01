@@ -19,6 +19,7 @@ import { createMeController } from './controllers/me-controller';
 import {
   createDocumentController,
   createPublicController,
+  createPublicEstimateController,
 } from './controllers/document-controllers';
 import {
   createPaymentController,
@@ -97,6 +98,23 @@ export function createApp(config: Config, deps: AppDeps) {
   app.get('/public/invoices/:token', publicLimiter, publicCtrl.json);
   app.get('/public/invoices/:token/pdf', publicLimiter, publicCtrl.pdf);
   app.post('/public/invoices/:token/view', publicLimiter, publicCtrl.view);
+  const estimatePublic = createPublicEstimateController(deps.documentService);
+  app.get('/estimate/:token', publicLimiter, estimatePublic.page);
+  app.get('/public/estimates/:token', publicLimiter, estimatePublic.json);
+  app.get('/public/estimates/:token/pdf', publicLimiter, estimatePublic.pdf);
+  app.post('/public/estimates/:token/view', publicLimiter, estimatePublic.view);
+  app.post(
+    '/public/estimates/:token/respond',
+    rateLimit({
+      windowMs: 60_000,
+      limit: config.RESPOND_RATE_LIMIT_PER_MINUTE,
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+      message: { error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
+    }),
+    express.json({ limit: '2kb' }),
+    estimatePublic.respond,
+  );
   app.post(
     '/public/invoices/:token/payment-intent',
     rateLimit({

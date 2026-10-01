@@ -137,10 +137,22 @@ describe('routeForNotification', () => {
       params: { id: 'inv-1' },
     });
   });
-  it.each([[null], [undefined], [{}], [{ invoiceId: '' }], [{ invoiceId: 5 }], ['x']])(
-    'ignores %p',
-    (data) => {
-      expect(routeForNotification(data)).toBeNull();
-    },
-  );
+  it('opens the estimate for estimate notifications', () => {
+    expect(routeForNotification({ estimateId: 'est-1' })).toEqual({
+      tab: 'InvoicesTab',
+      screen: 'Estimate',
+      params: { id: 'est-1' },
+    });
+  });
+  it.each([
+    [null],
+    [undefined],
+    [{}],
+    [{ invoiceId: '' }],
+    [{ invoiceId: 5 }],
+    [{ estimateId: '' }],
+    ['x'],
+  ])('ignores %p', (data) => {
+    expect(routeForNotification(data)).toBeNull();
+  });
 });

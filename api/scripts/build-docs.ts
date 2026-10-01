@@ -293,6 +293,19 @@ export const OPS: Op[] = [
   },
   {
     method: 'post',
+    path: '/v1/estimates/{id}/share-link',
+    tag: 'Estimates',
+    summary: 'Create (or return) the customer-facing estimate link',
+  },
+  {
+    method: 'delete',
+    path: '/v1/estimates/{id}/share-link',
+    tag: 'Estimates',
+    summary: 'Revoke the estimate link',
+    status: 204,
+  },
+  {
+    method: 'post',
     path: '/v1/estimates/{id}/pdf',
     tag: 'Estimates',
     summary: 'Render the estimate as a PDF',
@@ -440,6 +453,43 @@ export const OPS: Op[] = [
     path: '/public/invoices/{token}/payment-intent',
     tag: 'Public',
     summary: 'Start a payment from the public page',
+    auth: 'public',
+  },
+  {
+    method: 'get',
+    path: '/estimate/{token}',
+    tag: 'Public',
+    summary: 'Customer-facing estimate page (HTML) with Accept / Decline',
+    auth: 'public',
+  },
+  {
+    method: 'get',
+    path: '/public/estimates/{token}',
+    tag: 'Public',
+    summary: 'Sanitised estimate JSON',
+    auth: 'public',
+  },
+  {
+    method: 'get',
+    path: '/public/estimates/{token}/pdf',
+    tag: 'Public',
+    summary: 'Estimate PDF',
+    auth: 'public',
+  },
+  {
+    method: 'post',
+    path: '/public/estimates/{token}/view',
+    tag: 'Public',
+    summary: 'Record that the customer viewed the estimate',
+    auth: 'public',
+    status: 204,
+  },
+  {
+    method: 'post',
+    path: '/public/estimates/{token}/respond',
+    tag: 'Public',
+    summary:
+      'Customer accepts or declines ({decision: accept|decline, name?}); the same answer twice is a no-op, the opposite answer is 409',
     auth: 'public',
   },
   {
