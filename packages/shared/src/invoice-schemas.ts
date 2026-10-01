@@ -94,6 +94,8 @@ const listStatus = z.enum([
   'overdue',
   'cancelled',
   'refunded',
+  /** Everything still owed: sent, viewed and partially paid, overdue included. */
+  'outstanding',
 ]);
 
 export const invoiceListQuerySchema = listQuerySchema.extend({

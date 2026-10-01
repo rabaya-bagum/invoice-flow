@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import type { InvoiceWriteInput, SendInvoiceInput, TaxRateInput } from '@invoiceflow/shared';
-import type { BusinessUpdate, CustomerInput, ProductInput } from '../models';
+import type { BusinessUpdate, CustomerInput, DashboardPeriod, ProductInput } from '../models';
 import { useAuth } from '../store/auth';
 
 export const PAGE_SIZE = 25;
@@ -18,6 +18,8 @@ export const keys = {
   products: ['products'] as const,
   product: (id: string) => ['products', 'detail', id] as const,
   invoices: ['invoices'] as const,
+  // Nested under invoices so any invoice/payment mutation refreshes the dashboard too.
+  dashboard: (period: string) => ['invoices', 'dashboard', period] as const,
   taxRates: ['tax-rates'] as const,
   asset: (kind: string) => ['business-asset', kind] as const,
   payments: ['payments'] as const,
@@ -345,5 +347,15 @@ export function useMarkAllNotificationsRead() {
   return useMutation({
     mutationFn: () => api.markAllNotificationsRead(),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.notifications }),
+  });
+}
+
+// ------------------------------------------------------------------ dashboard
+export function useDashboard(period: DashboardPeriod) {
+  const { api } = useAuth();
+  return useQuery({
+    queryKey: keys.dashboard(period),
+    queryFn: () => api.getDashboard(period),
+    staleTime: 15_000,
   });
 }

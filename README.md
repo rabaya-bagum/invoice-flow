@@ -106,6 +106,21 @@ sent, viewed, paid, partial payment, payment failed, overdue) and delivers it th
    retry loop**. Both are safe to run in several instances at once.
 5. Test a token by sending to it from <https://expo.dev/notifications>.
 
+## Demo data
+
+Sign up in the app first, then fill that account with 5 customers, 10 products/services and 20
+invoices (draft, sent, viewed, paid, partially paid, overdue; one in EUR):
+
+```bash
+export DATABASE_URL=postgresql://...        # the same connection string the API uses
+pnpm --filter @invoiceflow/api seed -- --email you@example.com
+# start over (deletes ALL of that business's customers, products, invoices, payments):
+pnpm --filter @invoiceflow/api seed -- --email you@example.com --reset --yes
+```
+
+It refuses to run on a business that already has data. Dates are relative to today, so the overdue
+and due-soon invoices stay that way whenever you seed.
+
 ## Environment variables
 
 See `api/.env.example` and `mobile/.env.example`. The Supabase **service-role key** and Stripe **secret
@@ -115,5 +130,6 @@ key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and any
 
 Phases 1 (architecture, schema, money library, CI), 2 (authentication), 3 (business profile,
 customers, products, tab navigation), 4 (invoices), 5 (preview, PDF, email/share, public invoice
-page), 6 (Stripe payments) and 7 (push notifications, overdue job, activity timeline) are complete.
-Next: Phase 8, the dashboard, search polish and seed data.
+page), 6 (Stripe payments), 7 (push notifications, overdue job, activity timeline) and 8 (dashboard,
+quick-create menu, demo seed data) are complete.
+Next: Phase 9, hardening and end-to-end tests.

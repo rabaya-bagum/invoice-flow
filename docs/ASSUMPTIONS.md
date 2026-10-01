@@ -174,6 +174,30 @@
 - **Not verified on a device:** permission prompts, token registration, delivery and tap-to-open need a physical
   device with an EAS build; tests mock the native modules and the Expo service.
 
+## Dashboard, quick create, seed data (Phase 8)
+- `GET /v1/dashboard?period=all|this_month|this_year` returns everything the home screen needs in one
+  call. Totals are **per currency** and never summed across currencies; the business's default currency
+  is always the first row (zero-filled when empty).
+- *Outstanding* = balance on sent/viewed/partially-paid invoices (overdue included). *Overdue* is the
+  subset past due in the business timezone, using the same rule as the list's `overdue` filter (a test
+  keeps them equal). *Draft* sums draft totals.
+- *Paid* is money actually received: successful payments minus refunds, taken from the `payments`
+  table (not invoice totals), so partial payments count and refunds reduce it. The period filters on
+  `paid_at` in the business timezone and applies to Paid only; the other cards are always current.
+  Payments marked paid by hand (no payment row) are not counted yet, since the app has no manual
+  payment recording until later.
+- The invoice list gained an `outstanding` status filter so the Outstanding card opens a list that
+  adds up to the card. Tapping a card opens Invoices pre-filtered.
+- The "+" menu offers New invoice and New customer. Estimate arrives with estimates (Phase 11);
+  expenses are not in v1.
+- Seed (`pnpm --filter @invoiceflow/api seed`) goes through the real invoice service, so totals are the
+  server's own calculation, then back-dates status timestamps and inserts matching payment rows
+  directly. It refuses non-empty businesses; `--reset --yes` wipes customers, products, tax rates,
+  invoices, payments, notifications and numbering for that one business.
+- The dashboard is invalidated by any invoice/payment mutation in the app (its query key is nested
+  under `invoices`). A payment arriving through Stripe while the app is open shows after pull-to-refresh
+  or the next push-notification refresh.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

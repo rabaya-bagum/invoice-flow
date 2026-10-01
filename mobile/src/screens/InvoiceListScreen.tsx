@@ -1,6 +1,6 @@
 import { dateRangeFor, todayInTimezone, type DatePreset } from '@invoiceflow/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { ChipRow } from '../components/ChipRow';
 import { DateField } from '../components/DateField';
@@ -16,14 +16,25 @@ import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
 import { formatDate, money } from '../utils/format';
 
-type StatusFilter = 'all' | 'draft' | 'sent' | 'viewed' | 'paid' | 'overdue' | 'cancelled';
+type StatusFilter =
+  | 'all'
+  | 'outstanding'
+  | 'draft'
+  | 'sent'
+  | 'viewed'
+  | 'partially_paid'
+  | 'paid'
+  | 'overdue'
+  | 'cancelled';
 type DateFilter = 'any' | DatePreset | 'custom';
 
 const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'all', label: 'All' },
+  { value: 'outstanding', label: 'Outstanding' },
   { value: 'draft', label: 'Draft' },
   { value: 'sent', label: 'Sent' },
   { value: 'viewed', label: 'Viewed' },
+  { value: 'partially_paid', label: 'Partial' },
   { value: 'paid', label: 'Paid' },
   { value: 'overdue', label: 'Overdue' },
   { value: 'cancelled', label: 'Cancelled' },
@@ -38,12 +49,18 @@ const DATE_OPTIONS: Array<{ value: DateFilter; label: string }> = [
 
 export function InvoiceListScreen({
   navigation,
+  route,
 }: NativeStackScreenProps<InvoicesStackParams, 'InvoiceList'>) {
   const c = useTheme();
   const business = useBusiness();
   const today = todayInTimezone(business.data?.timezone ?? 'UTC');
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<StatusFilter>('all');
+  const preset = route?.params?.status;
+  const [status, setStatus] = useState<StatusFilter>(preset ?? 'all');
+  // A dashboard card can re-open this list with a different preset while it stays mounted.
+  useEffect(() => {
+    if (preset) setStatus(preset);
+  }, [preset]);
   const [dateFilter, setDateFilter] = useState<DateFilter>('any');
   const [custom, setCustom] = useState({ from: today, to: today });
 

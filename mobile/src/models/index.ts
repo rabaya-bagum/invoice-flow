@@ -159,3 +159,27 @@ export interface NotificationPage {
   total: number;
   unread: number;
 }
+
+export type DashboardPeriod = 'all' | 'this_month' | 'this_year';
+
+export interface CurrencyTotals {
+  currency: string;
+  outstandingMinor: number;
+  outstandingCount: number;
+  overdueMinor: number;
+  overdueCount: number;
+  draftMinor: number;
+  draftCount: number;
+  paidMinor: number;
+  paidCount: number;
+}
+
+export interface Dashboard {
+  businessName: string;
+  defaultCurrency: string;
+  period: DashboardPeriod;
+  /** Default currency first, then the others A-Z. Money is never summed across currencies. */
+  currencies: CurrencyTotals[];
+  recentInvoices: InvoiceSummary[];
+  recentPayments: Payment[];
+}

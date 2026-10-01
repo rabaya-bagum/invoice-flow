@@ -9,6 +9,8 @@ import type {
   Customer,
   CustomerInput,
   Invoice,
+  Dashboard,
+  DashboardPeriod,
   InvoiceSummary,
   NotificationPage,
   Page,
@@ -107,6 +109,8 @@ export function createApiClient(opts: ApiClientOptions) {
 
   return {
     getMe: () => request<MeResponse>('/v1/me'),
+    getDashboard: (period: DashboardPeriod = 'all') =>
+      request<Dashboard>(`/v1/dashboard${qs({ period })}`),
     deleteAccount: () => request<void>('/v1/me', body('DELETE', { confirm: 'DELETE' })),
 
     getBusiness: () => request<BusinessProfile>('/v1/business'),

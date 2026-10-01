@@ -1,4 +1,5 @@
 import { Router, raw, type RequestHandler } from 'express';
+import type { createDashboardController } from '../controllers/dashboard-controller';
 import type { createNotificationController } from '../controllers/notification-controllers';
 import type { createPaymentController } from '../controllers/payment-controllers';
 import type { createDocumentController } from '../controllers/document-controllers';
@@ -21,6 +22,7 @@ export function createCatalogRouter(c: {
   documents: ReturnType<typeof createDocumentController>;
   payments: ReturnType<typeof createPaymentController>;
   notifications: ReturnType<typeof createNotificationController>;
+  dashboard: ReturnType<typeof createDashboardController>;
   sendLimiter: RequestHandler;
 }) {
   const r = Router();
@@ -70,6 +72,8 @@ export function createCatalogRouter(c: {
   r.post('/notifications/:id/read', c.notifications.read);
   r.post('/push-tokens', c.notifications.registerToken);
   r.delete('/push-tokens', c.notifications.removeToken);
+
+  r.get('/dashboard', c.dashboard.get);
 
   r.get('/tax-rates', c.taxRates.list);
   r.post('/tax-rates', c.taxRates.create);

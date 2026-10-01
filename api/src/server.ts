@@ -14,6 +14,7 @@ import {
   createProductService,
 } from './services/catalog-services';
 import { createSupabaseAssetStorage, ensureAssetBucket } from './services/asset-storage';
+import { createDashboardService } from './services/dashboard-service';
 import { createExpoPushSender, createLogPushSender } from './services/push';
 import { createNotificationService } from './services/notification-service';
 import { createOverdueService, startSchedulers } from './services/overdue-service';
@@ -64,6 +65,7 @@ const overdueService = createOverdueService(db);
 
 const app = createApp(config, {
   notificationService,
+  dashboardService: createDashboardService(db),
   verifyToken: tokenVerifierFromConfig(config),
   accountService: createAccountService(
     createAccountRepository(db, async (userId) => {

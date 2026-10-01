@@ -25,6 +25,7 @@ import {
   createWebhookHandler,
   stripeReturnHandlers,
 } from './controllers/payment-controllers';
+import { createDashboardController } from './controllers/dashboard-controller';
 import { createNotificationController } from './controllers/notification-controllers';
 import { requireAuth } from './middleware/auth';
 import { requireBusiness } from './middleware/business';
@@ -33,6 +34,7 @@ import { healthRouter } from './routes/health';
 import type { BusinessRepository } from './repositories/business-repository';
 import type { TaxRateRepository } from './repositories/tax-rate-repository';
 import type { DocumentService } from './services/document-service';
+import type { DashboardService } from './services/dashboard-service';
 import type { NotificationService } from './services/notification-service';
 import type { PaymentService } from './services/payment-service';
 import type { InvoiceService } from './services/invoice-service';
@@ -54,6 +56,7 @@ export interface AppDeps {
   documentService: DocumentService;
   paymentService: PaymentService;
   notificationService: NotificationService;
+  dashboardService: DashboardService;
 }
 
 export function createApp(config: Config, deps: AppDeps) {
@@ -143,6 +146,7 @@ export function createApp(config: Config, deps: AppDeps) {
       documents: createDocumentController(deps.documentService),
       payments: createPaymentController(deps.paymentService),
       notifications: createNotificationController(deps.notificationService),
+      dashboard: createDashboardController(deps.dashboardService),
       // Emails are costly and abusable: cap per signed-in user, not just per IP.
       sendLimiter: rateLimit({
         windowMs: 10 * 60_000,

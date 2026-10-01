@@ -239,7 +239,9 @@ export function createInvoiceRepository(db: Queryable): InvoiceRepository {
       if (q.customerId) add('i.customer_id = ?', q.customerId);
       if (q.from) add('i.issue_date >= ?', q.from);
       if (q.to) add('i.issue_date <= ?', q.to);
-      if (q.status) where.push(`(${DISPLAY_STATUS}) = '${q.status}'`); // enum-validated by zod
+      if (q.status === 'outstanding') {
+        where.push(`i.status IN ('sent', 'viewed', 'partially_paid') AND i.balance_due_minor > 0`);
+      } else if (q.status) where.push(`(${DISPLAY_STATUS}) = '${q.status}'`); // enum-validated by zod
       if (q.search) {
         params.push(likePattern(q.search));
         const like = `$${params.length}`;

@@ -19,6 +19,7 @@ import { createMemoryAssetStorage } from '../src/services/asset-storage';
 import { createDocumentService } from '../src/services/document-service';
 import type { EmailMessage, EmailSender } from '../src/services/email';
 import Stripe from 'stripe';
+import { createDashboardService } from '../src/services/dashboard-service';
 import { createNotificationService } from '../src/services/notification-service';
 import { createOverdueService } from '../src/services/overdue-service';
 import type { PushMessage, PushResult, PushSender } from '../src/services/push';
@@ -119,6 +120,7 @@ export async function buildTestApp(env: Record<string, string> = {}) {
     documentService: unused('documentService'),
     paymentService: unused('paymentService'),
     notificationService: unused('notificationService'),
+    dashboardService: unused('dashboardService'),
   });
   return { app, privateKey, ...fake };
 }
@@ -232,6 +234,7 @@ export async function buildDbApp(
     documentService,
     paymentService,
     notificationService,
+    dashboardService: createDashboardService(database),
   });
   const bearer = async (userId: string) => `Bearer ${await sign(privateKey, { sub: userId })}`;
   return {
