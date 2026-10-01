@@ -1,0 +1,5 @@
+# Run: maestro test .maestro            (from mobile/, with a dev build installed on a simulator/emulator)
+# Needs a verified test account; seed it first so the dashboard flow has data:
+#   E2E_EMAIL=qa@example.com E2E_PASSWORD=... maestro test -e E2E_EMAIL=$E2E_EMAIL -e E2E_PASSWORD=$E2E_PASSWORD .maestro
+flows:
+  - '*.yaml'

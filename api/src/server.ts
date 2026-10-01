@@ -123,9 +123,21 @@ const server = app.listen(config.PORT, () => {
   console.log(`InvoiceFlow API listening on :${config.PORT} (${config.NODE_ENV})`);
 });
 
+// Keep-alive connections would otherwise hold server.close() open until the orchestrator kills us.
+const SHUTDOWN_GRACE_MS = 10_000;
+let stopping = false;
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
+    if (stopping) return;
+    stopping = true;
     stopJobs();
+    setTimeout(() => process.exit(1), SHUTDOWN_GRACE_MS).unref();
     server.close(() => void pool.end().then(() => process.exit(0)));
+    server.closeIdleConnections();
   });
 }
+
+// A stray rejected promise must be visible, not silently swallowed (and never leak request data).
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason instanceof Error ? reason.stack : reason);
+});

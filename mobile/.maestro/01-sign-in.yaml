@@ -1,0 +1,20 @@
+appId: com.invoiceflow.app
+name: Sign in and land on the dashboard
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'Sign in'
+# Wrong password shows an error and stays on the sign-in screen.
+- tapOn: 'Email'
+- inputText: ${E2E_EMAIL}
+- tapOn: 'Password'
+- inputText: 'definitely-wrong-password'
+- tapOn: 'Sign in'
+- assertNotVisible: 'New invoice'
+# Right password reaches the app.
+- tapOn: 'Password'
+- eraseText: 40
+- inputText: ${E2E_PASSWORD}
+- tapOn: 'Sign in'
+- assertVisible: 'Outstanding'
+- assertVisible: 'Overdue'

@@ -198,6 +198,16 @@
   under `invoices`). A payment arriving through Stripe while the app is open shows after pull-to-refresh
   or the next push-notification refresh.
 
+## Hardening (Phase 9)
+- See `docs/SECURITY.md` for the review, the fixes and the gaps. Isolation is tested by sweeping every
+  route declared in `src/routes/*.ts` (the test reads the route files, so a new route is covered the
+  moment it is added) and by id-probing 22 actions as a second tenant.
+- Cross-tenant ids answer 404 everywhere, including `GET /customers/:id/invoices` (previously an empty
+  200). Soft-deleted customers still resolve so their invoice history stays reachable.
+- Maestro flows are written but unrun; the Jest drift guard only checks labels, not behaviour.
+- Tests that insert notification rows directly must set `push_sent_at`, otherwise another test file's
+  push dispatch can claim them (the outbox claims across all businesses).
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

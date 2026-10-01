@@ -106,6 +106,20 @@ sent, viewed, paid, partial payment, payment failed, overdue) and delivers it th
    retry loop**. Both are safe to run in several instances at once.
 5. Test a token by sending to it from <https://expo.dev/notifications>.
 
+## End-to-end flows (Maestro)
+
+`mobile/.maestro/` holds three device flows: sign in, dashboard cards and quick-create menu, and
+creating a customer then an invoice. They need a development build on a simulator/emulator and a
+verified test account (seed it first; see below):
+
+```bash
+curl -Ls https://get.maestro.mobile.dev | bash        # install Maestro once
+cd mobile && maestro test -e E2E_EMAIL=qa@example.com -e E2E_PASSWORD=... .maestro
+```
+
+They have **not been run** in this build environment (no device). A Jest test
+(`api/test/maestro-flows.test.ts`) fails if a flow references a label that no longer exists in the app.
+
 ## Demo data
 
 Sign up in the app first, then fill that account with 5 customers, 10 products/services and 20
@@ -131,5 +145,7 @@ key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and any
 Phases 1 (architecture, schema, money library, CI), 2 (authentication), 3 (business profile,
 customers, products, tab navigation), 4 (invoices), 5 (preview, PDF, email/share, public invoice
 page), 6 (Stripe payments), 7 (push notifications, overdue job, activity timeline) and 8 (dashboard,
-quick-create menu, demo seed data) are complete.
-Next: Phase 9, hardening and end-to-end tests.
+quick-create menu, demo seed data) and 9 (security review, isolation/abuse tests, Maestro flows) are
+complete. See `docs/SECURITY.md` for the review and what it does not cover.
+Next: remaining roadmap (estimates, offline drafts + sync, template customization), API docs, and
+store-readiness (EAS build profiles, icons, privacy policy).

@@ -492,7 +492,7 @@ describe('cross-account isolation (IDOR)', () => {
     expect(JSON.stringify((await b.call('get', '/v1/invoices?limit=100')).body)).not.toContain(
       inv.id,
     );
-    expect((await b.call('get', `/v1/customers/${cidA}/invoices`)).body.total).toBe(0);
+    expect((await b.call('get', `/v1/customers/${cidA}/invoices`)).status).toBe(404);
     expect((await b.call('post', '/v1/invoices').send(invoiceBody(cidA))).status).toBe(422);
 
     const after = (await a.call('get', `/v1/invoices/${inv.id}`)).body;

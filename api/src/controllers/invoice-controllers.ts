@@ -43,7 +43,7 @@ export function createInvoiceController(svc: InvoiceService) {
     /** GET /customers/:id/invoices */
     async forCustomer(req: Request, res: Response) {
       const q = invoiceListQuerySchema.parse({ ...req.query, customerId: idParam(req) });
-      const { items, total } = await svc.list(businessId(req), q);
+      const { items, total } = await svc.listForCustomer(businessId(req), idParam(req), q);
       res.json({ items, total });
     },
   };

@@ -60,7 +60,15 @@ export interface AppDeps {
 }
 
 export function createApp(config: Config, deps: AppDeps) {
-  const logger = pino({ level: config.LOG_LEVEL, redact: ['req.headers.authorization'] });
+  const logger = pino({
+    level: config.LOG_LEVEL,
+    redact: [
+      'req.headers.authorization',
+      'req.headers.cookie',
+      'req.headers["stripe-signature"]',
+      'res.headers["set-cookie"]',
+    ],
+  });
   const app = express();
 
   // Behind a TLS-terminating proxy in production; needed for correct client IPs in rate limiting.

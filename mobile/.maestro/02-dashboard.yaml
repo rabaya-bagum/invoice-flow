@@ -1,0 +1,17 @@
+appId: com.invoiceflow.app
+name: Dashboard cards open the matching invoice list (needs seeded data)
+---
+- launchApp
+- assertVisible: 'Outstanding'
+- tapOn:
+    text: 'Overdue.*'
+- assertVisible: 'Overdue'
+- tapOn: 'Home'
+- tapOn:
+    text: 'Outstanding.*'
+- assertVisible: 'Search invoices'
+- tapOn: 'Home'
+- tapOn: 'Quick create'
+- assertVisible: 'New invoice'
+- assertVisible: 'New customer'
+- tapOn: 'Close menu'

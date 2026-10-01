@@ -150,6 +150,12 @@ export function createInvoiceService(db: Database) {
   return {
     list: (businessId: string, q: InvoiceListQuery) => repo().list(businessId, q),
 
+    /** A customer's invoices; an id from another business is "not found", like everywhere else. */
+    async listForCustomer(businessId: string, customerId: string, q: InvoiceListQuery) {
+      if (!(await repo().customerForPrint(businessId, customerId))) throw notFound('Customer');
+      return repo().list(businessId, { ...q, customerId });
+    },
+
     async get(businessId: string, id: string) {
       const inv = await repo().get(businessId, id);
       if (!inv) throw notFound('Invoice');

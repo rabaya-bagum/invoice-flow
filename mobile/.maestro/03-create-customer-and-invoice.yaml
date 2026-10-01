@@ -1,0 +1,22 @@
+appId: com.invoiceflow.app
+name: Create a customer, then an invoice for them
+---
+- launchApp
+- tapOn: 'Quick create'
+- tapOn: 'New customer'
+- tapOn: 'Company name'
+- inputText: 'Maestro Test Co'
+- tapOn: 'Add customer'
+- assertVisible: 'Maestro Test Co'
+- tapOn: 'Home'
+- tapOn: 'Quick create'
+- tapOn: 'New invoice'
+- tapOn: 'Choose customer'
+- tapOn: 'Maestro Test Co'
+- tapOn: 'Item 1 description'
+- inputText: 'Consulting'
+- tapOn: 'Item 1 unit price'
+- inputText: '150'
+- tapOn: 'Create invoice'
+- assertVisible: 'Maestro Test Co'
+- assertVisible: 'Mark as sent'
