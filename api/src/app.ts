@@ -5,10 +5,20 @@ import helmet from 'helmet';
 import { pino } from 'pino';
 import { pinoHttp } from 'pino-http';
 import type { Config } from './config';
+import { createMeController } from './controllers/me-controller';
+import { requireAuth } from './middleware/auth';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { healthRouter } from './routes/health';
+import { createMeRouter } from './routes/me';
+import type { AccountService } from './services/account-service';
+import type { TokenVerifier } from './services/token-verifier';
 
-export function createApp(config: Config) {
+export interface AppDeps {
+  verifyToken: TokenVerifier;
+  accountService: AccountService;
+}
+
+export function createApp(config: Config, deps: AppDeps) {
   const logger = pino({ level: config.LOG_LEVEL, redact: ['req.headers.authorization'] });
   const app = express();
 
@@ -34,7 +44,9 @@ export function createApp(config: Config) {
   );
   // The Stripe webhook (Phase 6) must be mounted BEFORE this so it can read the raw body.
   api.use(express.json({ limit: '100kb' }));
-  // Feature routers are mounted here from Phase 2 onward.
+  // Everything below requires a verified Supabase session.
+  api.use(requireAuth(deps.verifyToken));
+  api.use(createMeRouter(createMeController(deps.accountService)));
   app.use('/v1', api);
 
   app.use(notFoundHandler);

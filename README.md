@@ -38,6 +38,19 @@ pnpm --filter @invoiceflow/mobile start     # Expo dev server
 pnpm build && pnpm typecheck && pnpm lint && pnpm test && pnpm db:check
 ```
 
+## Authentication setup
+
+1. Create a Supabase project and run the migrations (`supabase db push`, or paste `supabase/migrations`
+   into the SQL editor).
+2. Authentication -> URL Configuration: add `invoiceflow://auth/callback` and `invoiceflow://auth/reset`
+   to the redirect allow-list (for Expo Go during development also add the `exp://...` URL it prints).
+3. Authentication -> Providers -> Email: keep **Confirm email** on; set minimum password length 10 and
+   enable leaked-password protection (Pro plan) and CAPTCHA/rate limits as appropriate.
+4. Fill `api/.env` (service-role key) and `mobile/.env` (URL + anon key).
+
+Biometric unlock, SecureStore persistence and deep links need a real device or simulator build:
+use a development build (`npx expo run:ios` / `run:android`) rather than relying on Expo Go.
+
 ## Environment variables
 
 See `api/.env.example` and `mobile/.env.example`. The Supabase **service-role key** and Stripe **secret
@@ -45,5 +58,5 @@ key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and any
 
 ## Status
 
-Phase 1 (architecture, tooling, schema, money library, CI) is complete. See the roadmap in the project
-prompt. Next: Phase 2, authentication.
+Phases 1 (architecture, schema, money library, CI) and 2 (authentication) are complete. Next: Phase 3,
+dashboard, business profile and customers.

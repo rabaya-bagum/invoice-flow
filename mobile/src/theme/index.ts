@@ -5,6 +5,9 @@ export const colors = {
     text: '#0F172A',
     muted: '#64748B',
     primary: '#2563EB',
+    danger: '#DC2626',
+    onPrimary: '#FFFFFF',
+    border: '#CBD5E1',
   },
   dark: {
     background: '#0B1120',
@@ -12,6 +15,9 @@ export const colors = {
     text: '#F8FAFC',
     muted: '#94A3B8',
     primary: '#60A5FA',
+    danger: '#F87171',
+    onPrimary: '#0B1120',
+    border: '#334155',
   },
 } as const;
 

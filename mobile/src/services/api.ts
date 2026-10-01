@@ -1,0 +1,91 @@
+import { classifyError, type ErrorKind } from '../utils/errors';
+
+export class ApiError extends Error {
+  constructor(
+    public readonly kind: ErrorKind,
+    public readonly status?: number,
+    public readonly code?: string,
+  ) {
+    super(kind);
+    this.name = 'ApiError';
+  }
+}
+
+export interface ApiClientOptions {
+  baseUrl: string;
+  /** Returns a fresh access token, or null when signed out. */
+  getToken: () => Promise<string | null>;
+  /** Forces a token refresh; called once after a 401 before giving up. */
+  refreshToken: () => Promise<string | null>;
+  onSessionExpired: () => void;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}
+
+export function createApiClient(opts: ApiClientOptions) {
+  const doFetch = opts.fetchImpl ?? fetch;
+
+  async function send(path: string, init: RequestInit, token: string | null): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 15_000);
+    try {
+      return await doFetch(`${opts.baseUrl}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    let res: Response;
+    try {
+      res = await send(path, init, await opts.getToken());
+      if (res.status === 401) {
+        const fresh = await opts.refreshToken();
+        if (fresh) res = await send(path, init, fresh);
+      }
+    } catch (err) {
+      throw new ApiError(classifyError(err) === 'network' ? 'network' : 'unknown');
+    }
+    if (res.status === 401) {
+      opts.onSessionExpired();
+      throw new ApiError('session_expired', 401);
+    }
+    if (!res.ok) {
+      let code: string | undefined;
+      try {
+        code = (await res.json())?.error?.code;
+      } catch {
+        /* non-JSON error body: ignore */
+      }
+      throw new ApiError(res.status >= 500 ? 'server' : 'unknown', res.status, code);
+    }
+    return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+  }
+
+  return {
+    getMe: () => request<MeResponse>('/v1/me'),
+    deleteAccount: () =>
+      request<void>('/v1/me', { method: 'DELETE', body: JSON.stringify({ confirm: 'DELETE' }) }),
+  };
+}
+
+export type ApiClient = ReturnType<typeof createApiClient>;
+
+export interface MeResponse {
+  email?: string;
+  user: { id: string; fullName: string | null };
+  business: {
+    id: string;
+    name: string;
+    defaultCurrency: string;
+    timezone: string;
+    stripeChargesEnabled: boolean;
+  };
+}

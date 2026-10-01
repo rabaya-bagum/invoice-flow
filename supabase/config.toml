@@ -5,6 +5,7 @@ project_id = "invoiceflow"
 site_url = "invoiceflow://"
 additional_redirect_urls = ["invoiceflow://auth/callback", "invoiceflow://auth/reset"]
 minimum_password_length = 10
+password_requirements = "letters_digits"
 
 [auth.email]
 enable_signup = true

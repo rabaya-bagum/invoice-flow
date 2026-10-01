@@ -1,8 +1,12 @@
 import request from 'supertest';
-import { createApp } from '../src/app';
 import { loadConfig } from '../src/config';
 
-const app = createApp(loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }));
+import { buildTestApp } from './helpers';
+
+let app: Awaited<ReturnType<typeof buildTestApp>>['app'];
+beforeAll(async () => {
+  app = (await buildTestApp()).app;
+});
 
 describe('app', () => {
   it('GET /health', async () => {
@@ -25,7 +29,7 @@ describe('app', () => {
 
   it('rejects malformed JSON without leaking internals', async () => {
     const res = await request(app)
-      .post('/v1/anything')
+      .post('/v1/me')
       .set('Content-Type', 'application/json')
       .send('{bad');
     expect(res.status).toBe(400);

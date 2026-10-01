@@ -10,6 +10,28 @@
   payments etc., because direct PostgREST writes would bypass server-side total calculation.
 - `audit_logs`, `webhook_events`, `document_sequences` have RLS on and no policies: service role only.
 
+## Authentication (Phase 2)
+- Supabase Auth owns sign-up, login, email verification, password reset and refresh-token rotation.
+  The mobile app uses `supabase-js` with the **PKCE** flow, so email links carry `?code=` and the app
+  exchanges it for a session. Opening a link on a different device than the one that started the flow
+  will fail the exchange; the user sees "link invalid or expired" and can sign in normally.
+- Session storage: chunked `expo-secure-store` entries (Keychain / Keystore-backed,
+  `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY`) since a session exceeds SecureStore's ~2KB value limit.
+- Biometric unlock is a **local gate** over the stored session, not a login method: the lock flag lives
+  in SecureStore, applies at cold start and after 30s in the background, and is cleared on sign-out.
+  Enabling it requires a successful scan. Failure/cancel leaves the user on the lock screen with a
+  "Sign out" escape.
+- API verifies access tokens with `jose`: signature (JWKS for asymmetric keys, or HS256 secret for legacy
+  projects), `exp`, issuer `<SUPABASE_URL>/auth/v1`, audience `authenticated`, UUID `sub`. All failures
+  return one identical 401 body. `jose` is pinned to v5 because v6 is ESM-only and the API is CommonJS.
+- Sign-up and password-reset screens give the same message whether or not an account exists.
+- Account deletion: `DELETE /v1/me {confirm:"DELETE"}` writes an audit row, then deletes the auth user;
+  foreign-key cascades remove business data. Stripe Connect cleanup is added in Phase 6.
+- The API's `/v1/me` uses the supabase-js service client. Invoice writes (Phase 4) will use a direct
+  Postgres connection for transactions.
+- Not verified on a device: Face ID / fingerprint prompts, SecureStore behaviour, deep-link handling,
+  and real Supabase email delivery. Unit tests cover the logic around them with mocks.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

@@ -20,6 +20,15 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "InvoiceFlow uses Face ID to unlock the app."
+        }
+      ]
+    ]
   }
 }

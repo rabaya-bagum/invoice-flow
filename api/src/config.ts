@@ -17,6 +17,8 @@ const schema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  /** Only for legacy projects that sign tokens with HS256. Leave unset to verify via JWKS. */
+  SUPABASE_JWT_SECRET: z.string().min(1).optional(),
   DATABASE_URL: z.string().min(1).optional(),
 });
 
