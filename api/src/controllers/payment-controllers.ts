@@ -30,7 +30,10 @@ export function createPaymentController(svc: PaymentService) {
 
     async refund(req: Request, res: Response) {
       const { amountMinor } = refundInputSchema.parse(req.body ?? {});
-      res.status(202).json(await svc.refund(actor(req), idParam(req), amountMinor));
+      // Optional client key: the app reuses it when retrying a refund that may have gone through.
+      const key = req.get('Idempotency-Key');
+      const requestKey = key && /^[A-Za-z0-9_-]{8,64}$/.test(key) ? key : undefined;
+      res.status(202).json(await svc.refund(actor(req), idParam(req), amountMinor, requestKey));
     },
 
     /** POST /v1/payments/create-intent: for the signed-in owner (e.g. collecting in person). */

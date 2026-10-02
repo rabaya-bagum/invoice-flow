@@ -207,11 +207,16 @@ export function createApiClient(opts: ApiClientOptions) {
     listPayments: (p: { status?: string; search?: string; limit?: number; offset?: number }) =>
       request<Page<Payment>>(`/v1/payments${qs({ ...p })}`),
     getPayment: (id: string) => request<Payment>(`/v1/payments/${id}`),
-    refundPayment: (id: string, amountMinor?: number) =>
-      request<{ requested: number }>(
-        `/v1/payments/${id}/refund`,
-        body('POST', amountMinor ? { amountMinor } : {}),
-      ),
+    /** `requestKey` makes a retry safe: the server returns the original refund instead of a second one. */
+    refundPayment: (id: string, amountMinor?: number, requestKey?: string) => {
+      const init = body('POST', amountMinor ? { amountMinor } : {});
+      if (requestKey)
+        init.headers = {
+          ...(init.headers as Record<string, string>),
+          'Idempotency-Key': requestKey,
+        };
+      return request<{ requested: number }>(`/v1/payments/${id}/refund`, init);
+    },
 
     listNotifications: (p: { unread?: boolean; limit?: number; offset?: number } = {}) =>
       request<NotificationPage>(`/v1/notifications${qs({ ...p })}`),

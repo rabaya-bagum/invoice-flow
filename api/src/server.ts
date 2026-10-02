@@ -19,6 +19,7 @@ import { createExpoPushSender, createLogPushSender } from './services/push';
 import { createNotificationService } from './services/notification-service';
 import { createOverdueService, startSchedulers } from './services/overdue-service';
 import { createPaymentService } from './services/payment-service';
+import { createPendingPaymentReleaser } from './services/pending-payments';
 import { createStripeGateway } from './services/stripe-gateway';
 import { createDocumentService } from './services/document-service';
 import { createEmailSender } from './services/email';
@@ -49,7 +50,13 @@ const linkSecret =
         throw new Error('PUBLIC_LINK_SECRET is required in production');
       })()
     : 'dev-only-insecure-link-secret-change-me');
-const invoiceService = createInvoiceService(db);
+const stripeGateway =
+  config.STRIPE_SECRET_KEY && config.STRIPE_WEBHOOK_SECRET
+    ? createStripeGateway(config.STRIPE_SECRET_KEY, config.STRIPE_WEBHOOK_SECRET)
+    : null;
+const invoiceService = createInvoiceService(db, {
+  releasePendingPayment: createPendingPaymentReleaser(db, stripeGateway),
+});
 const estimateService = createEstimateService(db, invoiceService);
 // Private bucket for logos/signatures; no-op if it already exists.
 void ensureAssetBucket(admin).catch((e: Error) =>
@@ -86,10 +93,7 @@ const app = createApp(config, {
     db,
     invoices: invoiceService,
     businesses: businessRepo,
-    gateway:
-      config.STRIPE_SECRET_KEY && config.STRIPE_WEBHOOK_SECRET
-        ? createStripeGateway(config.STRIPE_SECRET_KEY, config.STRIPE_WEBHOOK_SECRET)
-        : null,
+    gateway: stripeGateway,
     config,
   }),
   documentService: createDocumentService({

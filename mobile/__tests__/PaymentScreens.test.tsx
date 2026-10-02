@@ -128,6 +128,7 @@ describe('PaymentDetailScreen', () => {
       expect(api.refundPayment).toHaveBeenCalledWith(
         '11111111-aaaa-4bbb-8ccc-111111111111',
         undefined,
+        expect.stringMatching(/^[0-9a-f-]{36}$/),
       ),
     );
     expect(alert.mock.calls[0]![1]).toContain('$1,000.00');
@@ -143,6 +144,7 @@ describe('PaymentDetailScreen', () => {
       expect(api.refundPayment).toHaveBeenCalledWith(
         '11111111-aaaa-4bbb-8ccc-111111111111',
         25_050,
+        expect.stringMatching(/^[0-9a-f-]{36}$/),
       ),
     );
   });
@@ -196,6 +198,28 @@ describe('PaymentDetailScreen', () => {
     });
     await fireEvent.press(screen.getByRole('button', { name: 'Refund' }));
     expect(await screen.findByText(/payment provider could not be reached/)).toBeTruthy();
+  });
+
+  it('retries a failed refund with the same key, and uses a new key once one succeeds', async () => {
+    confirmAlerts();
+    let fail = true;
+    const refundPayment = jest.fn(async () => {
+      if (fail) throw new ApiError('server', 502, 'PAYMENT_PROVIDER_ERROR');
+      return { requested: 1000 };
+    });
+    await open(payment(), { refundPayment });
+    const press = () => fireEvent.press(screen.getByRole('button', { name: 'Refund' }));
+    const keyOf = (n: number) => (refundPayment.mock.calls[n] as unknown[])[2];
+
+    await press();
+    await screen.findByText(/payment provider could not be reached/);
+    fail = false;
+    await press(); // retry after the error: the first attempt may have gone through at Stripe
+    await screen.findByText(/requested/);
+    await press(); // a new, deliberate refund
+    await waitFor(() => expect(refundPayment).toHaveBeenCalledTimes(3));
+    expect(keyOf(1)).toBe(keyOf(0));
+    expect(keyOf(2)).not.toBe(keyOf(0));
   });
 });
 

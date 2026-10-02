@@ -1,6 +1,6 @@
 import { parseMoney, isSupportedCurrency } from '@invoiceflow/shared';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Linking, Text, View } from 'react-native';
 import { Button } from '../components/Button';
 import { ErrorState, LoadingState } from '../components/ListStates';
@@ -10,6 +10,7 @@ import { Screen } from '../components/Screen';
 import { TextField } from '../components/TextField';
 import { usePayment, useRefundPayment } from '../hooks/queries';
 import { useSubmit } from '../hooks/useSubmit';
+import { newInvoiceId as newRequestKey } from '../offline/ids';
 import type { PaymentsStackParams } from '../navigation/types';
 import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
@@ -26,6 +27,9 @@ export function PaymentDetailScreen({
   const [amount, setAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState<string | null>(null);
+  // One key per refund attempt: kept across retries after an error (the refund may have gone
+  // through), replaced only once a refund succeeds.
+  const refundKey = useRef<string | null>(null);
 
   if (q.isPending) return <LoadingState />;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />;
@@ -67,7 +71,9 @@ export function PaymentDetailScreen({
           style: 'destructive',
           onPress: () =>
             void submit.run(async () => {
-              await refund.mutateAsync(minor);
+              refundKey.current ??= newRequestKey();
+              await refund.mutateAsync({ amountMinor: minor, requestKey: refundKey.current });
+              refundKey.current = null;
               setRequested(label);
               setAmount('');
             }),

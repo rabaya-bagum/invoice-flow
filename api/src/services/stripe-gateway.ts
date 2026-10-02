@@ -68,9 +68,14 @@ export interface StripeGateway {
   cancelPaymentIntent(id: string): Promise<void>;
   retrieveCharge(id: string): Promise<ChargeLite>;
   createRefund(
-    p: { paymentIntentId: string; amount: number },
+    p: { paymentIntentId: string; amount: number; requestKey?: string },
     idempotencyKey: string,
   ): Promise<{ id: string; status: string }>;
+  /**
+   * Sum (Stripe units) of refunds on the intent that are done or still in flight, leaving out any
+   * created by `excludeRequestKey` (so a retried request is not blocked by its own earlier refund).
+   */
+  refundedAmount(paymentIntentId: string, excludeRequestKey?: string): Promise<number>;
   /** Verifies the Stripe-Signature header against the raw body. Throws if invalid. */
   constructEvent(rawBody: Buffer, signature: string): StripeEventLite;
 }
@@ -204,10 +209,28 @@ export function createStripeGateway(secretKey: string, webhookSecret: string): S
             // our platform fee proportionally.
             reverse_transfer: true,
             refund_application_fee: true,
+            ...(p.requestKey ? { metadata: { request_key: p.requestKey } } : {}),
           },
           { idempotencyKey },
         );
         return { id: r.id, status: r.status ?? 'pending' };
+      } catch (e) {
+        return wrap(e);
+      }
+    },
+
+    async refundedAmount(paymentIntentId, excludeRequestKey) {
+      try {
+        let total = 0;
+        for await (const r of stripe.refunds.list({
+          payment_intent: paymentIntentId,
+          limit: 100,
+        })) {
+          if (r.status === 'failed' || r.status === 'canceled') continue;
+          if (excludeRequestKey && r.metadata?.request_key === excludeRequestKey) continue;
+          total += r.amount;
+        }
+        return total;
       } catch (e) {
         return wrap(e);
       }

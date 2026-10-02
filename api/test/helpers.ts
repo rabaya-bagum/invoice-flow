@@ -27,6 +27,7 @@ import { createPaymentService } from '../src/services/payment-service';
 import type { ChargeLite, PaymentIntentLite, StripeGateway } from '../src/services/stripe-gateway';
 import { createEstimateService } from '../src/services/estimate-service';
 import { createInvoiceService } from '../src/services/invoice-service';
+import { createPendingPaymentReleaser } from '../src/services/pending-payments';
 import { createProductRepository } from '../src/repositories/product-repository';
 import { createAccountService } from '../src/services/account-service';
 import {
@@ -164,7 +165,11 @@ export async function buildDbApp(
   const db = getPool();
   const database = createDatabase(db);
   const businessRepo = createBusinessRepository(db);
-  const invoiceService = createInvoiceService(database);
+  const stripe = fakeStripe();
+  const gateway = opts.stripe === false ? null : stripe.gateway;
+  const invoiceService = createInvoiceService(database, {
+    releasePendingPayment: createPendingPaymentReleaser(database, gateway),
+  });
   const estimateService = createEstimateService(database, invoiceService);
   const assets = createMemoryAssetStorage();
   // Captures outgoing email; set `email.fail = true` to simulate a provider outage.
@@ -215,12 +220,11 @@ export async function buildDbApp(
   });
   const notificationService = { ...realNotifications, kick: () => undefined }; // no background sends in tests
   const overdue = createOverdueService(database);
-  const stripe = fakeStripe();
   const paymentService = createPaymentService({
     db: database,
     invoices: invoiceService,
     businesses: businessRepo,
-    gateway: opts.stripe === false ? null : stripe.gateway,
+    gateway,
     config: {
       PUBLIC_APP_URL: 'https://api.test',
       PLATFORM_FEE_BPS: 250,
@@ -315,11 +319,18 @@ export function fakeStripe() {
   const state = {
     accounts,
     intents,
-    refunds: [] as Array<{ paymentIntentId: string; amount: number; key: string }>,
+    refunds: [] as Array<{
+      paymentIntentId: string;
+      amount: number;
+      requestKey?: string;
+      key: string;
+    }>,
     counts: { createPaymentIntent: 0, cancel: 0, createAccount: 0 },
     method: 'card' as ChargeLite['method'],
     failChargeLookup: 0,
     failIntentCreate: null as string | null,
+    /** Make cancelPaymentIntent throw (network error, or Stripe refusing because money moved). */
+    failCancel: false,
   };
   const gateway: StripeGateway = {
     async createExpressAccount() {
@@ -371,6 +382,7 @@ export function fakeStripe() {
     },
     async cancelPaymentIntent(id) {
       state.counts.cancel++;
+      if (state.failCancel) throw new Error('stripe unavailable');
       const pi = intents.get(id);
       if (pi) pi.status = 'canceled';
     },
@@ -388,6 +400,12 @@ export function fakeStripe() {
       const r = { id: `re_${uniq()}`, status: 'succeeded' };
       refundsByKey.set(key, r);
       return r;
+    },
+    async refundedAmount(paymentIntentId, excludeRequestKey) {
+      return state.refunds
+        .filter((r) => r.paymentIntentId === paymentIntentId)
+        .filter((r) => !excludeRequestKey || r.requestKey !== excludeRequestKey)
+        .reduce((sum, r) => sum + r.amount, 0);
     },
     constructEvent: (raw, sig) =>
       real.webhooks.constructEvent(raw, sig, WEBHOOK_SECRET) as unknown as ReturnType<

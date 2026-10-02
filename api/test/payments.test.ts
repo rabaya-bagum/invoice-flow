@@ -226,6 +226,30 @@ describe('creating a payment', () => {
     expect(rows[0].failure_code).toBe('replaced');
   });
 
+  it('keeps the open intent if Stripe will not cancel it, instead of starting a second one', async () => {
+    const a = await account();
+    const inv = await a.invoice();
+    const first = await a.intent(inv.id, 40_000);
+    const createdBefore = ctx.stripe.state.counts.createPaymentIntent;
+    ctx.stripe.state.failCancel = true;
+    try {
+      const res = await a.intent(inv.id, 60_000);
+      expect(res.status).toBe(502);
+      expect(res.body.error.code).toBe('PAYMENT_PROVIDER_ERROR');
+    } finally {
+      ctx.stripe.state.failCancel = false;
+    }
+    // The old client secret may still be live in another tab, so it must stay the one attempt.
+    expect(ctx.stripe.state.counts.createPaymentIntent).toBe(createdBefore);
+    expect((await dbPayments(inv.id)).map((r) => [r.status, r.amount_minor])).toEqual([
+      ['pending', 40_000],
+    ]);
+    // Once Stripe answers again the change goes through normally.
+    const retry = await a.intent(inv.id, 60_000);
+    expect(retry.status).toBe(201);
+    expect(retry.body.paymentId).not.toBe(first.body.paymentId);
+  });
+
   it('never starts a second attempt while a payment is processing or has succeeded at Stripe', async () => {
     const a = await account();
     const inv = await a.invoice();
@@ -313,10 +337,14 @@ describe('creating a payment', () => {
     expect(await dbPayments(inv.id)).toHaveLength(0);
   });
 
-  it('freezes the invoice while a payment is pending, and frees it after a failure', async () => {
+  it('freezes the invoice while a payment is underway, and frees it after a failure', async () => {
     const a = await account();
     const inv = await a.invoice();
     const created = await a.intent(inv.id);
+    // The customer is in a 3-D Secure check: money may move, so the invoice must not change.
+    [...ctx.stripe.state.intents.values()].find(
+      (p) => p.params.metadata.invoice_id === inv.id,
+    )!.status = 'requires_action';
     const body = {
       customerId: (await a.get(inv.id)).customerId,
       issueDate: '2026-10-01',
@@ -338,6 +366,60 @@ describe('creating a payment', () => {
     await hook(ctx, ctx.stripe.failedEvent(pi.id));
     expect(created.status).toBe(201);
     expect((await a.call('put', `/v1/invoices/${inv.id}`).send(body)).status).toBe(200);
+  });
+
+  /** Opens the payment form for an invoice, then walks away (intent left untouched at Stripe). */
+  async function abandoned(a: Awaited<ReturnType<typeof account>>) {
+    const inv = await a.invoice();
+    await a.intent(inv.id);
+    const pi = [...ctx.stripe.state.intents.values()].find(
+      (p) => p.params.metadata.invoice_id === inv.id,
+    )!;
+    const body = {
+      customerId: (await a.get(inv.id)).customerId,
+      issueDate: '2026-10-01',
+      dueDate: '2026-10-15',
+      currency: 'USD',
+      items: [{ description: 'Revised', quantityMilli: 1000, unitPriceMinor: 90_000, taxes: [] }],
+    };
+    return { inv, pi, body };
+  }
+
+  it('an abandoned payment form does not lock the invoice: editing cancels it at Stripe', async () => {
+    const a = await account();
+    const { inv, pi, body } = await abandoned(a);
+    const res = await a.call('put', `/v1/invoices/${inv.id}`).send(body);
+    expect(res.status).toBe(200);
+    expect(pi.status).toBe('canceled');
+    expect((await dbPayments(inv.id)).map((r) => [r.status, r.failure_code])).toEqual([
+      ['failed', 'abandoned'],
+    ]);
+    // Stripe's own cancellation webhook arriving later changes nothing.
+    await hook(ctx, ctx.stripe.signed('payment_intent.canceled', { id: pi.id }));
+    expect((await dbPayments(inv.id))[0].failure_code).toBe('abandoned');
+  });
+
+  it('an abandoned payment form does not stop the owner cancelling the invoice', async () => {
+    const a = await account();
+    const { inv } = await abandoned(a);
+    const res = await a.call('post', `/v1/invoices/${inv.id}/transition`).send({ to: 'cancelled' });
+    expect(res.status).toBe(200);
+    expect((await a.get(inv.id)).status).toBe('cancelled');
+  });
+
+  it('keeps the invoice locked if the abandoned intent cannot be cancelled at Stripe', async () => {
+    const a = await account();
+    const { inv, pi, body } = await abandoned(a);
+    ctx.stripe.state.failCancel = true;
+    try {
+      const res = await a.call('put', `/v1/invoices/${inv.id}`).send(body);
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('PAYMENT_IN_PROGRESS');
+    } finally {
+      ctx.stripe.state.failCancel = false;
+    }
+    expect(pi.status).toBe('requires_payment_method');
+    expect((await dbPayments(inv.id)).map((r) => r.status)).toEqual(['pending']);
   });
 });
 
@@ -708,12 +790,67 @@ describe('refunds', () => {
     expect(res.body.error.code).toBe('NOT_REFUNDABLE');
   });
 
-  it('a double-tapped refund is sent to Stripe once (idempotency key)', async () => {
+  const refundWithKey = (
+    a: Awaited<ReturnType<typeof account>>,
+    paymentId: string,
+    key: string,
+    body: object = {},
+  ) => a.call('post', `/v1/payments/${paymentId}/refund`).set('Idempotency-Key', key).send(body);
+
+  it('a retried refund request (same Idempotency-Key) is sent to Stripe once', async () => {
     const a = await account();
     const { paymentId } = await paidInvoice(a);
     const before = ctx.stripe.state.refunds.length;
+    const first = await refundWithKey(a, paymentId, 'retry-key-0001', { amountMinor: 10_000 });
+    const retry = await refundWithKey(a, paymentId, 'retry-key-0001', { amountMinor: 10_000 });
+    expect([first.status, retry.status]).toEqual([202, 202]);
+    expect(ctx.stripe.state.refunds.length - before).toBe(1);
+  });
+
+  it('a retried full refund that already went through succeeds instead of failing', async () => {
+    const a = await account();
+    const { paymentId } = await paidInvoice(a);
+    const before = ctx.stripe.state.refunds.length;
+    expect((await refundWithKey(a, paymentId, 'full-key-0001')).status).toBe(202);
+    const retry = await refundWithKey(a, paymentId, 'full-key-0001');
+    expect(retry.status).toBe(202);
+    expect(retry.body.requested).toBe(100_000);
+    expect(ctx.stripe.state.refunds.length - before).toBe(1);
+  });
+
+  it('issues two deliberate refunds of the same amount before the first webhook lands', async () => {
+    const a = await account();
+    const { paymentId } = await paidInvoice(a);
+    const before = ctx.stripe.state.refunds.length;
+    await refundWithKey(a, paymentId, 'first-key-0001', { amountMinor: 10_000 });
+    await refundWithKey(a, paymentId, 'second-key-001', { amountMinor: 10_000 });
+    expect(ctx.stripe.state.refunds.length - before).toBe(2);
+    // Without a client key, a second request is also a new refund once Stripe holds the first.
     await a.call('post', `/v1/payments/${paymentId}/refund`).send({ amountMinor: 10_000 });
-    await a.call('post', `/v1/payments/${paymentId}/refund`).send({ amountMinor: 10_000 });
+    expect(ctx.stripe.state.refunds.length - before).toBe(3);
+  });
+
+  it('counts refunds still in flight at Stripe toward what can be refunded', async () => {
+    const a = await account();
+    const { paymentId } = await paidInvoice(a);
+    expect(
+      (await a.call('post', `/v1/payments/${paymentId}/refund`).send({ amountMinor: 60_000 }))
+        .status,
+    ).toBe(202);
+    // No webhook yet: our own refunded total is still 0, but Stripe already holds $600.
+    const second = await a
+      .call('post', `/v1/payments/${paymentId}/refund`)
+      .send({ amountMinor: 60_000 });
+    expect(second.status).toBe(422);
+    expect(second.body.error.code).toBe('AMOUNT_TOO_HIGH');
+  });
+
+  it('ignores a malformed Idempotency-Key rather than trusting it', async () => {
+    const a = await account();
+    const { paymentId } = await paidInvoice(a);
+    const before = ctx.stripe.state.refunds.length;
+    await refundWithKey(a, paymentId, 'bad key!', { amountMinor: 1_000 });
+    expect(ctx.stripe.state.refunds.at(-1)!.requestKey).toBeUndefined();
     expect(ctx.stripe.state.refunds.length - before).toBe(1);
   });
 

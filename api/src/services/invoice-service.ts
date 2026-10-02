@@ -17,6 +17,7 @@ import {
   type InvoiceWrite,
 } from '../repositories/invoice-repository';
 import { AppError, notFound } from '../utils/errors';
+import type { ReleasePendingPayment } from './pending-payments';
 
 export interface Actor {
   businessId: string;
@@ -94,7 +95,14 @@ function toWrite(input: InvoiceWriteInput, totals: InvoiceTotals, number: string
   };
 }
 
-export function createInvoiceService(db: Database) {
+export function createInvoiceService(
+  db: Database,
+  opts: {
+    /** Clears an abandoned payment attempt before an edit or status change (see pending-payments). */
+    releasePendingPayment?: ReleasePendingPayment;
+  } = {},
+) {
+  const releasePending = opts.releasePendingPayment ?? (async () => undefined);
   const repo = (q: Pick<Database, 'query'> = db) => createInvoiceRepository(q);
 
   /** Re-derives the breakdown from stored inputs so it can never drift from the stored totals. */
@@ -221,6 +229,7 @@ export function createInvoiceService(db: Database) {
     toDto,
 
     async update(actor: Actor, id: string, input: InvoiceWriteInput) {
+      await releasePending(actor.businessId, id);
       await db.transaction(async (tx) => {
         const r = repo(tx);
         const current = await r.lock(actor.businessId, id);
@@ -295,6 +304,7 @@ export function createInvoiceService(db: Database) {
     },
 
     async transition(actor: Actor, id: string, to: ManualTransition) {
+      await releasePending(actor.businessId, id);
       await db.transaction(async (tx) => {
         const r = repo(tx);
         const current = await r.lock(actor.businessId, id);

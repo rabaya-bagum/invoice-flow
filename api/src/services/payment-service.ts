@@ -184,8 +184,17 @@ export function createPaymentService(deps: Deps) {
             reused: true,
           };
         }
-        if (pi.status !== 'canceled')
-          await g.cancelPaymentIntent(existing.stripe_payment_intent_id).catch(() => undefined);
+        if (pi.status !== 'canceled') {
+          // If the old intent is not provably cancelled, its client secret may still be live in
+          // another tab: replacing it could let the customer pay twice. Keep it and ask for a retry.
+          await g.cancelPaymentIntent(existing.stripe_payment_intent_id).catch(() => {
+            throw new AppError(
+              502,
+              'PAYMENT_PROVIDER_ERROR',
+              'Could not start the payment. Please try again.',
+            );
+          });
+        }
         await pay.markFailed(existing.id, 'replaced');
       }
 
@@ -432,19 +441,30 @@ export function createPaymentService(deps: Deps) {
   }
 
   // ------------------------------------------------------------------ refunds
-  async function refund(actor: Actor, paymentId: string, amountMinor?: number) {
+  async function refund(
+    actor: Actor,
+    paymentId: string,
+    amountMinor?: number,
+    requestKey?: string,
+  ) {
     const g = gateway();
     const payment = await createPaymentRepository(db).get(actor.businessId, paymentId);
     if (!payment) throw notFound('Payment');
     if (payment.status !== 'successful' || !payment.stripePaymentIntentId) {
       throw new AppError(409, 'NOT_REFUNDABLE', 'Only successful payments can be refunded');
     }
-    const remaining = payment.amountMinor - payment.refundedMinor;
-    const amount = amountMinor ?? remaining;
-    if (amount > remaining)
-      throw new AppError(422, 'AMOUNT_TOO_HIGH', 'That is more than can be refunded');
     if (!isSupportedCurrency(payment.currency))
       throw new AppError(422, 'AMOUNT_UNSUPPORTED', 'Unsupported currency');
+    // Ask Stripe what is already refunded or in flight: our refunded_minor only moves when the
+    // charge.refunded webhook lands, so it misses refunds requested moments ago.
+    const atStripe = await g.refundedAmount(payment.stripePaymentIntentId, requestKey).catch(() => {
+      throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', 'Could not reach the payment provider');
+    });
+    const refunded = Math.max(payment.refundedMinor, fromStripeAmount(atStripe, payment.currency));
+    const remaining = payment.amountMinor - refunded;
+    const amount = amountMinor ?? remaining;
+    if (amount <= 0 || amount > remaining)
+      throw new AppError(422, 'AMOUNT_TOO_HIGH', 'That is more than can be refunded');
     let stripeAmount: number;
     try {
       stripeAmount = toStripeAmount(amount, payment.currency);
@@ -453,10 +473,14 @@ export function createPaymentService(deps: Deps) {
       throw e;
     }
     try {
-      // Same refund twice (double tap) -> same key -> Stripe returns the original instead of a second refund.
+      // With a client key, a retry of the same request returns Stripe's original refund even if it
+      // already went through. Without one, duplicates that see the same Stripe total share a key; a
+      // later, deliberate refund sees the earlier one in that total and gets a new key.
       await g.createRefund(
-        { paymentIntentId: payment.stripePaymentIntentId, amount: stripeAmount },
-        `refund:${payment.id}:${payment.refundedMinor}:${amount}`,
+        { paymentIntentId: payment.stripePaymentIntentId, amount: stripeAmount, requestKey },
+        requestKey
+          ? `refund:${payment.id}:${amount}:${requestKey}`
+          : `refund:${payment.id}:${atStripe}:${amount}`,
       );
     } catch {
       throw new AppError(

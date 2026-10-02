@@ -362,7 +362,8 @@ export function useRefundPayment(id: string) {
   const { api } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (amountMinor?: number) => api.refundPayment(id, amountMinor),
+    mutationFn: (v: { amountMinor?: number; requestKey: string }) =>
+      api.refundPayment(id, v.amountMinor, v.requestKey),
     // The refund is confirmed by Stripe's webhook, so refetch shortly after instead of assuming.
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.payments });
