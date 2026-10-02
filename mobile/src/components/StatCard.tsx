@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import type { ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatMoney, type CurrencyCode } from '@invoiceflow/shared';
-import { colors, radius, spacing } from '../theme';
+import { radius, spacing, type as t } from '../theme';
+import { useTheme } from '../theme/useTheme';
 
 interface Props {
   label: string;
@@ -12,39 +14,61 @@ interface Props {
   onPress?: () => void;
   /** Colours the amount, e.g. red for overdue. */
   tone?: string;
+  /** `hero` is the screen's main figure (full width, display-size amount); `wide` is full width. */
+  size?: 'hero' | 'wide' | 'regular';
+  /** Control in the top-right corner (e.g. a period picker). Kept outside the card's button. */
+  accessory?: ReactNode;
+  /** Extra row under the figure (e.g. an overdue line). Kept outside the card's button. */
+  footer?: ReactNode;
 }
 
 /** Dashboard summary card: amounts arrive as integer minor units and are only formatted here. */
-export function StatCard({ label, amountMinor, currency, detail, onPress, tone }: Props) {
-  const c = colors[useColorScheme() === 'dark' ? 'dark' : 'light'];
+export function StatCard({
+  label,
+  amountMinor,
+  currency,
+  detail,
+  onPress,
+  tone,
+  size = 'regular',
+  accessory,
+  footer,
+}: Props) {
+  const c = useTheme();
+  const hero = size === 'hero';
+  const amount = formatMoney(amountMinor, currency);
   const body = (
     <>
-      <Text style={[styles.label, { color: c.muted }]}>{label}</Text>
+      <Text style={[t.label, { color: c.muted }]}>{label}</Text>
       <Text
-        style={[styles.amount, { color: tone ?? c.text }]}
+        style={[hero ? t.display : t.figure, styles.amount, { color: tone ?? c.text }]}
         numberOfLines={1}
         adjustsFontSizeToFit
       >
-        {formatMoney(amountMinor, currency)}
+        {amount}
       </Text>
-      {detail ? <Text style={[styles.detail, { color: c.muted }]}>{detail}</Text> : null}
+      {detail ? <Text style={[t.caption, { color: c.muted }]}>{detail}</Text> : null}
     </>
   );
-  if (onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={`${label}: ${formatMoney(amountMinor, currency)}${detail ? `, ${detail}` : ''}`}
-        style={[styles.card, { backgroundColor: c.surface }]}
-      >
-        {body}
-      </Pressable>
-    );
-  }
   return (
-    <View style={[styles.card, { backgroundColor: c.surface }]} accessibilityRole="summary">
-      {body}
+    <View
+      style={[styles.card, size !== 'regular' && styles.full, { backgroundColor: c.surface }]}
+      accessibilityRole={onPress ? undefined : 'summary'}
+    >
+      {onPress ? (
+        <Pressable
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: ${amount}${detail ? `, ${detail}` : ''}`}
+          style={({ pressed }) => [styles.body, pressed && styles.pressed]}
+        >
+          {body}
+        </Pressable>
+      ) : (
+        <View style={styles.body}>{body}</View>
+      )}
+      {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
+      {footer}
     </View>
   );
 }
@@ -52,12 +76,14 @@ export function StatCard({ label, amountMinor, currency, detail, onPress, tone }
 const styles = StyleSheet.create({
   card: {
     borderRadius: radius.card,
-    padding: spacing.md,
     minWidth: 140,
     flexGrow: 1,
     flexBasis: '45%',
+    overflow: 'hidden',
   },
-  label: { fontSize: 14, marginBottom: spacing.xs },
-  amount: { fontSize: 24, fontWeight: '700' },
-  detail: { fontSize: 13, marginTop: 2 },
+  full: { flexBasis: '100%' },
+  body: { padding: spacing.md, gap: 2 },
+  pressed: { opacity: 0.7 },
+  amount: { marginTop: spacing.xs },
+  accessory: { position: 'absolute', top: spacing.sm, right: spacing.sm },
 });

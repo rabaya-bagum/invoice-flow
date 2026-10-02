@@ -197,7 +197,10 @@ export function InvoiceRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Invoice ${inv.number}, ${inv.customerName}, ${money(inv.totalMinor, inv.currency)}`}
-      style={[styles.row, { borderBottomColor: c.border }]}
+      style={({ pressed }) => [
+        styles.row,
+        { borderBottomColor: c.border, backgroundColor: pressed ? c.surface : 'transparent' },
+      ]}
     >
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }} numberOfLines={1}>
@@ -214,7 +217,10 @@ export function InvoiceRow({
         <Text style={{ color: c.text, fontWeight: '700' }}>
           {money(inv.totalMinor, inv.currency)}
         </Text>
-        <StatusBadge status={inv.displayStatus} />
+        {/* Wrapped: the badge sizes itself with alignSelf, which would undo the right alignment. */}
+        <View>
+          <StatusBadge status={inv.displayStatus} />
+        </View>
       </View>
     </Pressable>
   );

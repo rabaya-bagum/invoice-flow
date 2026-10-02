@@ -74,11 +74,36 @@ describe('HomeScreen dashboard', () => {
     expect(await screen.findByText('Acme Studio')).toBeTruthy();
     expect(screen.getByText('$4,250.00')).toBeTruthy();
     expect(screen.getByText('4 invoices')).toBeTruthy();
-    expect(screen.getByText('$1,200.00')).toBeTruthy();
+    expect(screen.getByText('$1,200.00 overdue · 2 invoices')).toBeTruthy();
     expect(screen.getByText('$12,500.00')).toBeTruthy();
     expect(screen.getByText('$300.00')).toBeTruthy();
     expect(screen.getByText('3 drafts')).toBeTruthy();
-    expect(screen.getByText('Notifications (2)')).toBeTruthy();
+    expect(screen.getByLabelText('Notifications, 2 unread')).toBeTruthy();
+  });
+
+  it('leads with what is owed, flags overdue inside it, and opens drafts', async () => {
+    await open();
+    expect(await screen.findByText('$1,200.00 overdue · 2 invoices')).toBeTruthy();
+    expect(screen.queryByText(/period applies/)).toBeNull();
+    await fireEvent.press(screen.getByLabelText(/^Draft: \$300\.00, 3 drafts/));
+    expect(mockNavigate).toHaveBeenLastCalledWith('InvoicesTab', {
+      screen: 'InvoiceList',
+      params: { status: 'draft' },
+    });
+    await fireEvent.press(screen.getByLabelText('Notifications, 2 unread'));
+    expect(mockNavigate).toHaveBeenLastCalledWith('MoreTab', { screen: 'Notifications' });
+  });
+
+  it("says so when nothing is overdue, and labels other currencies' Paid with the period", async () => {
+    const api = await open(
+      dashboard({
+        currencies: [totals({ overdueMinor: 0, overdueCount: 0 }), totals({ currency: 'EUR' })],
+      }),
+    );
+    expect(await screen.findByText('Nothing overdue')).toBeTruthy();
+    await fireEvent.press(screen.getByText('This year'));
+    await waitFor(() => expect(api.getDashboard).toHaveBeenCalledWith('this_year'));
+    expect(await screen.findByText('Paid · This year')).toBeTruthy();
   });
 
   it('opens the matching invoice list when a card is tapped', async () => {
