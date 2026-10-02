@@ -4,6 +4,7 @@ export * from './rounding';
 export * from './money';
 export * from './calc';
 export * from './schemas';
+export * from './branding';
 export * from './dates';
 export * from './invoice-status';
 export * from './invoice-schemas';

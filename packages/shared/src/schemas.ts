@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { accentColorSchema, displayOptionsSchema, TEMPLATES } from './branding';
 import { isSupportedCurrency } from './currency';
 
 /** Treat '' / whitespace as "not provided". */
@@ -106,12 +107,9 @@ export const businessUpdateSchema = z
     invoicePrefix: prefix.optional(),
     estimatePrefix: prefix.optional(),
     numberPadding: z.number().int().min(1).max(10).optional(),
-    template: z.enum(['classic', 'modern', 'minimal']).optional(),
-    accentColor: z
-      .string()
-      .regex(/^#[0-9A-Fa-f]{6}$/, 'Use a hex colour like #2563EB')
-      .optional(),
-    displayOptions: z.record(z.string().max(40), z.boolean()).optional(),
+    template: z.enum(TEMPLATES).optional(),
+    accentColor: accentColorSchema.optional(),
+    displayOptions: displayOptionsSchema.optional(),
   })
   .strict();
 export type BusinessUpdate = z.infer<typeof businessUpdateSchema>;

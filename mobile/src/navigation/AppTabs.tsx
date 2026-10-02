@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { AppearanceScreen } from '../screens/AppearanceScreen';
 import { BusinessProfileScreen } from '../screens/BusinessProfileScreen';
 import { EstimateListScreen } from '../screens/EstimateListScreen';
 import { EstimateScreen } from '../screens/EstimateScreen';
@@ -132,6 +133,11 @@ function MoreStack() {
         options={({ route }) => ({ title: route.params?.id ? 'Edit item' : 'New item' })}
       />
       <More.Screen name="TaxRates" component={TaxRatesScreen} options={{ title: 'Tax rates' }} />
+      <More.Screen
+        name="Appearance"
+        component={AppearanceScreen}
+        options={{ title: 'Invoice appearance' }}
+      />
       <More.Screen
         name="OnlinePayments"
         component={OnlinePaymentsScreen}

@@ -54,7 +54,7 @@ describe('business profile', () => {
       defaultTaxRateBps: 500,
       defaultPaymentTermsDays: 30,
       accentColor: '#112233',
-      displayOptions: { showSku: false },
+      displayOptions: { showNotes: false },
     });
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -63,7 +63,7 @@ describe('business profile', () => {
       defaultCurrency: 'CAD',
       defaultTaxRateBps: 500,
       accentColor: '#112233',
-      displayOptions: { showSku: false },
+      displayOptions: { showNotes: false },
     });
     const cleared = await asA('put', '/v1/business').send({ phone: '' });
     expect(cleared.body.phone).toBeNull();

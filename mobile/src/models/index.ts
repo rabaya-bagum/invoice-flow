@@ -38,6 +38,8 @@ export interface BusinessProfile {
   numberPadding: number;
   template: string;
   accentColor: string;
+  /** Parts of a document switched off; missing keys mean shown. */
+  displayOptions?: Record<string, boolean>;
   stripeChargesEnabled: boolean;
 }
 

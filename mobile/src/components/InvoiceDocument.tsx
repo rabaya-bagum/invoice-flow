@@ -1,4 +1,11 @@
-import { formatLongDate, formatPercent, formatQuantity } from '@invoiceflow/shared';
+import {
+  formatLongDate,
+  formatPercent,
+  formatQuantity,
+  optionOn,
+  TEMPLATES,
+  type DisplayOptionKey,
+} from '@invoiceflow/shared';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useBusinessAsset } from '../hooks/queries';
 import type { BusinessProfile, Invoice } from '../models';
@@ -23,10 +30,17 @@ export function InvoiceDocument({
   kind?: 'invoice' | 'estimate';
 }) {
   const estimate = kind === 'estimate';
+  const on = (k: DisplayOptionKey) => optionOn(biz.displayOptions, k);
+  const template = (TEMPLATES as readonly string[]).includes(biz.template)
+    ? biz.template
+    : 'classic';
+  const modern = template === 'modern';
+  const minimal = template === 'minimal';
+  const headFg = modern ? '#FFFFFF' : undefined;
   const c = useTheme();
   const accent = safeAccent(biz.accentColor);
-  const logo = useBusinessAsset('logo', biz.logoPath);
-  const signature = useBusinessAsset('signature', biz.signaturePath);
+  const logo = useBusinessAsset('logo', on('showLogo') ? biz.logoPath : null);
+  const signature = useBusinessAsset('signature', on('showSignature') ? biz.signaturePath : null);
   const address = [
     biz.addressLine1,
     biz.addressLine2,
@@ -45,7 +59,12 @@ export function InvoiceDocument({
       style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}
       accessibilityLabel={`${estimate ? 'Estimate' : 'Invoice'} ${inv.number}`}
     >
-      <View style={styles.row}>
+      <View
+        style={[
+          styles.row,
+          modern && { backgroundColor: accent, padding: spacing.sm, borderRadius: 10 },
+        ]}
+      >
         <View style={{ flex: 1, gap: 2 }}>
           {logo.data ? (
             <Image
@@ -55,22 +74,30 @@ export function InvoiceDocument({
               accessibilityLabel="Company logo"
             />
           ) : null}
-          <Text style={{ color: c.text, fontSize: 16, fontWeight: '700' }}>{biz.name}</Text>
+          <Text style={{ color: headFg ?? c.text, fontSize: 16, fontWeight: '700' }}>
+            {biz.name}
+          </Text>
           {[...address, ...contact].map((l) => (
-            <Text key={l as string} style={{ color: c.muted, fontSize: 12 }}>
+            <Text key={l as string} style={{ color: headFg ?? c.muted, fontSize: 12 }}>
               {l}
             </Text>
           ))}
         </View>
         <View style={{ alignItems: 'flex-end', gap: 2 }}>
-          <Text style={{ color: accent, fontSize: 22, fontWeight: '800' }}>
+          <Text
+            style={{
+              color: headFg ?? (minimal ? c.text : accent),
+              fontSize: 22,
+              fontWeight: '800',
+            }}
+          >
             {estimate ? 'ESTIMATE' : 'INVOICE'}
           </Text>
-          <Text style={{ color: c.text, fontWeight: '700' }}>{inv.number}</Text>
-          <Text style={{ color: c.muted, fontSize: 12 }}>
+          <Text style={{ color: headFg ?? c.text, fontWeight: '700' }}>{inv.number}</Text>
+          <Text style={{ color: headFg ?? c.muted, fontSize: 12 }}>
             Issued {formatLongDate(inv.issueDate)}
           </Text>
-          <Text style={{ color: c.muted, fontSize: 12 }}>
+          <Text style={{ color: headFg ?? c.muted, fontSize: 12 }}>
             {estimate ? 'Valid until' : 'Due'} {formatLongDate(inv.dueDate)}
           </Text>
           <StatusBadge status={inv.displayStatus} />
@@ -91,12 +118,29 @@ export function InvoiceDocument({
         <View
           style={[
             styles.row,
-            { backgroundColor: `${accent}1F`, paddingVertical: 6, paddingHorizontal: 8 },
+            minimal
+              ? {
+                  borderBottomWidth: 2,
+                  borderBottomColor: c.text,
+                  paddingVertical: 6,
+                  paddingHorizontal: 8,
+                }
+              : { backgroundColor: `${accent}1F`, paddingVertical: 6, paddingHorizontal: 8 },
           ]}
         >
-          <Text style={[styles.th, { color: accent, flex: 1 }]}>DESCRIPTION</Text>
-          <Text style={[styles.th, { color: accent, width: 40, textAlign: 'right' }]}>QTY</Text>
-          <Text style={[styles.th, { color: accent, width: 84, textAlign: 'right' }]}>AMOUNT</Text>
+          <Text style={[styles.th, { color: minimal ? c.text : accent, flex: 1 }]}>
+            DESCRIPTION
+          </Text>
+          <Text
+            style={[styles.th, { color: minimal ? c.text : accent, width: 40, textAlign: 'right' }]}
+          >
+            QTY
+          </Text>
+          <Text
+            style={[styles.th, { color: minimal ? c.text : accent, width: 84, textAlign: 'right' }]}
+          >
+            AMOUNT
+          </Text>
         </View>
         {inv.items.map((it) => (
           <View
@@ -115,7 +159,7 @@ export function InvoiceDocument({
               <Text style={{ color: c.text }}>{it.description}</Text>
               <Text style={{ color: c.muted, fontSize: 11 }}>
                 {money(it.unitPriceMinor, inv.currency)} each
-                {it.taxes.length
+                {it.taxes.length && on('showTaxColumn')
                   ? ` · ${it.taxes.map((t) => `${t.name} ${formatPercent(t.rateBps)}%`).join(', ')}`
                   : ''}
               </Text>
@@ -140,7 +184,7 @@ export function InvoiceDocument({
         }
       />
 
-      {biz.paymentInstructions && !estimate ? (
+      {biz.paymentInstructions && !estimate && on('showPaymentInfo') ? (
         <View style={{ gap: 2 }}>
           <Text style={{ color: accent, fontSize: 11, fontWeight: '700' }}>
             PAYMENT INFORMATION
@@ -148,13 +192,13 @@ export function InvoiceDocument({
           <Text style={{ color: c.text }}>{biz.paymentInstructions}</Text>
         </View>
       ) : null}
-      {inv.notes ? (
+      {inv.notes && on('showNotes') ? (
         <View style={{ gap: 2 }}>
           <Text style={{ color: accent, fontSize: 11, fontWeight: '700' }}>NOTES</Text>
           <Text style={{ color: c.text }}>{inv.notes}</Text>
         </View>
       ) : null}
-      {inv.terms ? (
+      {inv.terms && on('showTerms') ? (
         <View style={{ gap: 2 }}>
           <Text style={{ color: accent, fontSize: 11, fontWeight: '700' }}>
             TERMS AND CONDITIONS

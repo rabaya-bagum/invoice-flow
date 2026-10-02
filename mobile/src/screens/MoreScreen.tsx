@@ -28,6 +28,11 @@ export function MoreScreen({ navigation }: NativeStackScreenProps<MoreStackParam
         onPress={() => root.navigate('InvoicesTab', { screen: 'EstimateList' })}
       />
       <Row
+        title="Invoice appearance"
+        subtitle="Layout, colour and what to show"
+        onPress={() => navigation.navigate('Appearance')}
+      />
+      <Row
         title="Products & services"
         subtitle="Reusable items with prices"
         onPress={() => navigation.navigate('ProductList')}

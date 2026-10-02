@@ -8,6 +8,7 @@ import {
 } from '@invoiceflow/shared';
 import { escapeHtml as e } from '../services/email';
 import type { DocumentService } from '../services/document-service';
+import { pageBranding, TEMPLATE_CSS } from './branding';
 
 type View = NonNullable<Awaited<ReturnType<DocumentService['estimatePublicView']>>>;
 
@@ -75,6 +76,7 @@ export function renderEstimatePage(
 ): string {
   const { estimate: est, business: biz, customer } = view;
   const accent = safeColor(biz.accentColor);
+  const brand = pageBranding(biz);
   const rows = buildTotalsRows({
     currency: est.currency,
     taxInclusive: est.taxInclusive,
@@ -107,7 +109,7 @@ export function renderEstimatePage(
     .map(
       (it) => `
     <tr>
-      <td class="desc">${e(it.description)}${it.taxes.length ? `<div class="muted small">${it.taxes.map((t) => `${e(t.name)} ${formatPercent(t.rateBps)}%`).join(', ')}</div>` : ''}</td>
+      <td class="desc">${e(it.description)}${it.taxes.length && brand.on('showTaxColumn') ? `<div class="muted small">${it.taxes.map((t) => `${e(t.name)} ${formatPercent(t.rateBps)}%`).join(', ')}</div>` : ''}</td>
       <td class="num">${formatQuantity(it.quantityMilli)}</td>
       <td class="num">${e(money(it.unitPriceMinor, est.currency))}</td>
       <td class="num strong">${e(money(it.lineTotalMinor, est.currency))}</td>
@@ -164,10 +166,10 @@ button.primary{border:0;background:var(--accent);color:#fff}button.secondary{bor
 #respond-name{width:100%;min-height:44px;font-size:1rem;padding:0 12px;border:1px solid var(--line);border-radius:10px;margin-top:4px}
 #respond-msg{padding:10px 12px;border-radius:10px;margin:8px 0;background:#eff6ff}#respond-msg.error{background:#fef2f2;color:#991b1b}
 a.btn{display:inline-block;min-height:44px;line-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none;font-weight:600}
-</style></head>
-<body data-token="${e(opts.token)}"><main>
-<section class="card"><header>
-  <div>${opts.logoDataUri ? `<img class="logo" alt="" src="${e(opts.logoDataUri)}">` : ''}<strong>${e(biz.name)}</strong>
+${TEMPLATE_CSS}</style></head>
+<body class="t-${brand.template}" data-token="${e(opts.token)}"><main>
+<section class="card head"><header>
+  <div>${opts.logoDataUri && brand.on('showLogo') ? `<img class="logo" alt="" src="${e(opts.logoDataUri)}">` : ''}<strong>${e(biz.name)}</strong>
     <div class="muted small">${bizAddress}${biz.email ? `<br>${e(biz.email)}` : ''}${biz.phone ? `<br>${e(biz.phone)}` : ''}${biz.website ? `<br>${e(biz.website)}` : ''}${biz.taxNumber ? `<br>Tax no: ${e(biz.taxNumber)}` : ''}</div></div>
   <div style="text-align:right"><h1>Estimate ${e(est.number)}</h1><span class="badge">${e(STATUS[est.displayStatus] ?? est.displayStatus)}</span>
     <div class="muted small">Issued ${e(formatLongDate(est.issueDate))}<br>Valid until ${e(formatLongDate(est.expiryDate))}</div></div>
@@ -177,8 +179,8 @@ a.btn{display:inline-block;min-height:44px;line-height:44px;padding:0 16px;borde
 <section class="card"><table><thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>${items}</tbody></table>
   <div class="totals">${totals}</div></section>
 ${decision}
-${est.notes ? `<section class="card"><h2>Notes</h2><p class="pre">${e(est.notes)}</p></section>` : ''}
-${est.terms ? `<section class="card"><h2>Terms and conditions</h2><p class="pre muted">${e(est.terms)}</p></section>` : ''}
+${est.notes && brand.on('showNotes') ? `<section class="card"><h2>Notes</h2><p class="pre">${e(est.notes)}</p></section>` : ''}
+${est.terms && brand.on('showTerms') ? `<section class="card"><h2>Terms and conditions</h2><p class="pre muted">${e(est.terms)}</p></section>` : ''}
 <p><a class="btn" href="/public/estimates/${e(opts.token)}/pdf" download>Download PDF</a></p>
 </main>
 <script nonce="${e(opts.nonce)}">${CLIENT_JS}</script>

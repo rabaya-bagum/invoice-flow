@@ -1,4 +1,4 @@
-import type { BusinessUpdate } from '@invoiceflow/shared';
+import { normalizeDisplayOptions, type BusinessUpdate } from '@invoiceflow/shared';
 import type { Queryable } from '../db';
 import { buildSet } from './sql';
 
@@ -81,6 +81,12 @@ export interface BusinessRepository {
   setAssetPath(businessId: string, kind: 'logo' | 'signature', key: string | null): Promise<void>;
 }
 
+/** Older rows may hold arbitrary keys; only the known on/off switches are ever served or rendered. */
+const clean = (b: BusinessProfile | undefined): BusinessProfile | null =>
+  b
+    ? { ...b, displayOptions: normalizeDisplayOptions(b.displayOptions) as Record<string, boolean> }
+    : null;
+
 export function createBusinessRepository(db: Queryable): BusinessRepository {
   return {
     async findIdByOwner(userId) {
@@ -96,7 +102,7 @@ export function createBusinessRepository(db: Queryable): BusinessRepository {
         `SELECT ${SELECT} FROM business_profiles WHERE id = $1`,
         [businessId],
       );
-      return r.rows[0] ?? null;
+      return clean(r.rows[0]);
     },
 
     async getStripeAccount(businessId) {
@@ -138,7 +144,7 @@ export function createBusinessRepository(db: Queryable): BusinessRepository {
         `UPDATE business_profiles SET ${set.sql} WHERE id = $1 RETURNING ${SELECT}`,
         [businessId, ...set.values],
       );
-      return r.rows[0] ?? null;
+      return clean(r.rows[0]);
     },
   };
 }

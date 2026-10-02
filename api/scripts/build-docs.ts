@@ -573,7 +573,8 @@ export const SCHEMAS: Record<string, object> = {
   },
   BusinessUpdate: {
     type: 'object',
-    description: 'Any subset of the business fields (unknown fields are rejected).',
+    description:
+      'Any subset of the business fields (unknown fields are rejected). Appearance: template (classic|modern|minimal), accentColor (#RRGGBB with contrast >= 3:1 on white), displayOptions (showLogo, showTaxColumn, showPaymentInfo, showNotes, showTerms, showSignature booleans; replaces the whole set).',
     additionalProperties: true,
   },
   CustomerInput: {

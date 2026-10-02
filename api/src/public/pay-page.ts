@@ -8,6 +8,7 @@ import {
   isSupportedCurrency,
 } from '@invoiceflow/shared';
 import { escapeHtml as e } from '../services/email';
+import { pageBranding, TEMPLATE_CSS } from './branding';
 import { PAY_CLIENT_JS } from './pay-client';
 import type { LoadedDocument } from '../services/document-service';
 
@@ -76,6 +77,7 @@ export function renderPayPage(
 ): string {
   const { invoice: inv, business: biz, customer } = view;
   const accent = safeColor(biz.accentColor);
+  const brand = pageBranding(biz);
   const rows = buildTotalsRows({
     currency: inv.currency,
     taxInclusive: inv.taxInclusive,
@@ -109,7 +111,7 @@ export function renderPayPage(
     .map(
       (it) => `
     <tr>
-      <td class="desc">${e(it.description)}${it.taxes.length ? `<div class="muted small">${it.taxes.map((t) => `${e(t.name)} ${formatPercent(t.rateBps)}%`).join(', ')}</div>` : ''}</td>
+      <td class="desc">${e(it.description)}${it.taxes.length && brand.on('showTaxColumn') ? `<div class="muted small">${it.taxes.map((t) => `${e(t.name)} ${formatPercent(t.rateBps)}%`).join(', ')}</div>` : ''}</td>
       <td class="num">${formatQuantity(it.quantityMilli)}</td>
       <td class="num">${e(money(it.unitPriceMinor, inv.currency))}</td>
       <td class="num strong">${e(money(it.lineTotalMinor, inv.currency))}</td>
@@ -125,9 +127,10 @@ export function renderPayPage(
   const statusLabel = STATUS[inv.displayStatus] ?? inv.displayStatus;
 
   const stripe = view.payable ? opts.stripe : null;
-  const other = biz.paymentInstructions
-    ? `<h3>Other ways to pay</h3><p class="pre">${e(biz.paymentInstructions)}</p>`
-    : '';
+  const other =
+    biz.paymentInstructions && brand.on('showPaymentInfo')
+      ? `<h3>Other ways to pay</h3><p class="pre">${e(biz.paymentInstructions)}</p>`
+      : '';
   const pay = view.payable
     ? stripe
       ? `<section class="card" id="pay-section"><h2>Pay this invoice</h2>
@@ -143,7 +146,7 @@ export function renderPayPage(
         ${other}
       </section>`
       : `<section class="card"><h2>How to pay</h2>
-        ${biz.paymentInstructions ? `<p class="pre">${e(biz.paymentInstructions)}</p>` : '<p class="muted">Online payment is not available for this invoice. Please contact the sender to arrange payment.</p>'}
+        ${biz.paymentInstructions && brand.on('showPaymentInfo') ? `<p class="pre">${e(biz.paymentInstructions)}</p>` : '<p class="muted">Online payment is not available for this invoice. Please contact the sender to arrange payment.</p>'}
       </section>`
     : '';
   const stripeScripts = stripe
@@ -179,10 +182,10 @@ button.primary{min-height:48px;width:100%;border:0;border-radius:12px;background
 .opt{display:block;padding:8px 0}#pay-amount-row{margin:4px 0 8px}#pay-amount{width:100%;min-height:44px;font-size:1rem;padding:0 12px;border:1px solid var(--line);border-radius:10px}
 #pay-msg{padding:10px 12px;border-radius:10px;margin:8px 0;background:#eff6ff}#pay-msg.error{background:#fef2f2;color:#991b1b}#pay-msg.ok{background:#f0fdf4;color:#166534}
 a.btn{display:inline-block;min-height:44px;line-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none;font-weight:600}
-</style></head>
-<body data-token="${e(opts.token)}"><main>
-<section class="card"><header>
-  <div>${opts.logoDataUri ? `<img class="logo" alt="" src="${e(opts.logoDataUri)}">` : ''}<strong>${e(biz.name)}</strong>
+${TEMPLATE_CSS}</style></head>
+<body class="t-${brand.template}" data-token="${e(opts.token)}"><main>
+<section class="card head"><header>
+  <div>${opts.logoDataUri && brand.on('showLogo') ? `<img class="logo" alt="" src="${e(opts.logoDataUri)}">` : ''}<strong>${e(biz.name)}</strong>
     <div class="muted small">${bizAddress}${biz.email ? `<br>${e(biz.email)}` : ''}${biz.phone ? `<br>${e(biz.phone)}` : ''}${biz.website ? `<br>${e(biz.website)}` : ''}${biz.taxNumber ? `<br>Tax no: ${e(biz.taxNumber)}` : ''}</div></div>
   <div style="text-align:right"><h1>Invoice ${e(inv.number)}</h1><span class="badge">${e(statusLabel)}</span>
     <div class="muted small">Issued ${e(formatLongDate(inv.issueDate))}<br>Due ${e(formatLongDate(inv.dueDate))}</div></div>
@@ -192,8 +195,8 @@ a.btn{display:inline-block;min-height:44px;line-height:44px;padding:0 16px;borde
 <section class="card"><table><thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>${items}</tbody></table>
   <div class="totals">${totals}</div></section>
 ${pay}
-${inv.notes ? `<section class="card"><h2>Notes</h2><p class="pre">${e(inv.notes)}</p></section>` : ''}
-${inv.terms ? `<section class="card"><h2>Terms and conditions</h2><p class="pre muted">${e(inv.terms)}</p></section>` : ''}
+${inv.notes && brand.on('showNotes') ? `<section class="card"><h2>Notes</h2><p class="pre">${e(inv.notes)}</p></section>` : ''}
+${inv.terms && brand.on('showTerms') ? `<section class="card"><h2>Terms and conditions</h2><p class="pre muted">${e(inv.terms)}</p></section>` : ''}
 <p><a class="btn" href="/public/invoices/${e(opts.token)}/pdf" download>Download PDF</a></p>
 </main>
 ${stripeScripts}

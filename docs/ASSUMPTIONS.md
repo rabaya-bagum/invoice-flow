@@ -263,6 +263,24 @@
 - Abuse limits: public routes per IP (`PUBLIC_RATE_LIMIT_PER_MINUTE`), answers per IP
   (`RESPOND_RATE_LIMIT_PER_MINUTE`, default 10), 2 KB body cap, strict nonce CSP with no third-party hosts.
 
+## Invoice appearance (Phase 13)
+- Owners choose a layout (Classic, Modern, Minimal), an accent colour and six on/off switches (logo, tax
+  column, payment information, notes, terms, signature) under More > Invoice appearance, with a live
+  preview of a sample invoice. The choice applies to PDFs (invoices and estimates), the in-app preview and
+  both customer pages. The app does not offer per-invoice overrides.
+- The accent is used as text on white and as a band under white text, so colours with contrast below 3:1
+  against white are refused (server and app share `isReadableAccent`). Presets are all >= 4.5:1.
+- `displayOptions` is now a strict set of the six known keys (it was a free-form map). Anything else
+  already stored is ignored when read. Saving replaces the whole set; "shown unless set to false" stays
+  the rule, so new switches added later default to on.
+- Tax column off hides the per-line tax names; the tax lines in the totals stay, because a tax-inclusive
+  total that hides its tax would be misleading. Switching off payment information hides the owner's typed
+  instructions but never the online pay form.
+- Customer pages use light template styling (modern = coloured header, minimal = plain rules); the PDF
+  differences are larger. Fonts and logo placement are not customisable.
+- Not covered: custom fonts, invoice title wording ("Tax invoice"), colours per document, a logo-size
+  setting, multiple saved themes.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).
