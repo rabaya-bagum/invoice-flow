@@ -14,3 +14,22 @@ export function bytesToBase64(bytes: Uint8Array): string {
   }
   return out;
 }
+
+/** base64 -> bytes (inverse of bytesToBase64). Throws on anything that is not valid base64. */
+export function base64ToBytes(text: string): Uint8Array {
+  const clean = text.replace(/=+$/, '');
+  if (clean.length % 4 === 1 || /[^A-Za-z0-9+/]/.test(clean)) throw new Error('invalid base64');
+  const out = new Uint8Array(Math.floor((clean.length * 3) / 4));
+  let o = 0;
+  for (let i = 0; i < clean.length; i += 4) {
+    const n =
+      (CHARS.indexOf(clean[i] as string) << 18) |
+      (CHARS.indexOf(clean[i + 1] as string) << 12) |
+      ((clean[i + 2] ? CHARS.indexOf(clean[i + 2] as string) : 0) << 6) |
+      (clean[i + 3] ? CHARS.indexOf(clean[i + 3] as string) : 0);
+    out[o++] = (n >> 16) & 255;
+    if (clean[i + 2]) out[o++] = (n >> 8) & 255;
+    if (clean[i + 3]) out[o++] = n & 255;
+  }
+  return out;
+}

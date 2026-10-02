@@ -26,9 +26,10 @@ Get an independent pentest before handling real customers' money.
 
 - Client-generated invoice ids are never reused (`ID_TAKEN`), whoever owns the existing one, and a
   concurrent duplicate is resolved by the primary key (tested: one 201, the rest 409).
-- Unsynced drafts and the saved customer/product lists are stored **unencrypted** in the app sandbox, one
-  file per user, and deleted on sign-out. Anyone with the unlocked phone or a rooted/jailbroken device can
-  read them. If that is not acceptable, encrypt the files with a key held in the secure store.
+- Unsynced drafts and the saved customer/product lists are **encrypted at rest** (XChaCha20-Poly1305, a
+  per-user key in the secure store, authenticated file names), one file per user, and erased with their key on
+  sign-out. Tests cover tampering, wrong key, swapped files, nonce reuse and key destruction. Residual risk:
+  a rooted/jailbroken device or someone using the unlocked app can still read the data.
 - A queued change is applied with the user's *current* session, never replayed with stale credentials.
 
 ## Findings and fixes in this phase

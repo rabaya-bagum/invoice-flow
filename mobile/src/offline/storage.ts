@@ -1,4 +1,6 @@
 import { File, Paths } from 'expo-file-system';
+import { decryptText, encryptText, isEncrypted, type RandomBytes } from './crypto';
+import type { KeyVault } from './vault';
 import { EMPTY_OUTBOX, type DraftOp, type OutboxState } from './types';
 
 /** A tiny named-text store, so the queue logic does not care where bytes live (and tests need no disk). */
@@ -36,6 +38,41 @@ export function createMemoryStore(initial: Record<string, string> = {}): TextSto
     read: async (n) => files.get(n) ?? null,
     write: async (n, t) => void files.set(n, t),
     remove: async (n) => void files.delete(n),
+  };
+}
+
+/**
+ * Wraps a store so every file is encrypted at rest (see crypto.ts). Reading an old plain-text file
+ * (written before encryption existed) still works and rewrites it encrypted straight away. A file that
+ * cannot be decrypted (key lost, file damaged or tampered with) is deleted and read as missing: the
+ * app starts clean rather than trusting or crashing on it.
+ */
+export function createEncryptedStore(
+  inner: TextStore,
+  vault: KeyVault,
+  random: RandomBytes,
+): TextStore {
+  return {
+    async read(name) {
+      const stored = await inner.read(name);
+      if (stored === null) return null;
+      const key = await vault.getKey();
+      if (!isEncrypted(stored)) {
+        // Legacy plain text: keep it, but encrypt it now.
+        await inner.write(name, encryptText(key, name, stored, random)).catch(() => undefined);
+        return stored;
+      }
+      try {
+        return decryptText(key, name, stored);
+      } catch {
+        await inner.remove(name).catch(() => undefined);
+        return null;
+      }
+    },
+    async write(name, text) {
+      await inner.write(name, encryptText(await vault.getKey(), name, text, random));
+    },
+    remove: (name) => inner.remove(name),
   };
 }
 

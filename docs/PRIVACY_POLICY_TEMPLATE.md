@@ -33,7 +33,7 @@ sell personal data and do not use it for advertising.
 - Authorities where required by law.
 
 - **Stored on your device:** drafts you write without a connection, and a copy of your customer, product and
-  tax-rate lists, are kept in the app's private storage until they upload or you sign out.
+  tax-rate lists, are kept in the app's private storage, encrypted, until they upload or you sign out.
 
 ## Retention and deletion
 Data is kept while your account exists. You can delete your account in the app (More > Settings); this

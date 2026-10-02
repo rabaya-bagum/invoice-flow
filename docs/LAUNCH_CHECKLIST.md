@@ -48,6 +48,8 @@ Resend, Expo or Supabase accounts from the build environment.
 - [ ] Accessibility on devices: VoiceOver (iOS) and TalkBack (Android) through sign in, a new invoice and the
       pay flow; largest system text size; bold text; reduce motion; dark mode. The automated audit only
       checks structure and colour contrast.
+- [ ] Encrypted drafts on a real phone: create an offline draft, restart the app (it must still be there),
+      sign out (a new sign-in must show none), and confirm a backup restore to another phone starts clean.
 - [ ] Offline drafts on a real phone: airplane mode, create a draft, edit it, kill the app, reopen online and
       confirm it uploads once; edit the same draft on two phones to see the conflict choices; sign out with
       an unsynced draft.

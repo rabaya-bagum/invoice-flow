@@ -322,9 +322,8 @@ the network. Estimates are not queued yet.
   the upload without a version check against its own upload.
 
 **Privacy and limits.**
-- Drafts and the saved lists sit **unencrypted** in the app sandbox (customer names, emails, prices).
-  They are removed on sign-out, session end, and account deletion, and signing out with unsynced drafts
-  asks first. Device-level encryption and the optional biometric lock are the protection beyond that.
+- Drafts and the saved lists are **encrypted at rest** since Phase 16 (see below). They are removed on
+  sign-out, session end, and account deletion, and signing out with unsynced drafts asks first.
 - Edits queued on two devices for the same draft are resolved by the conflict flow above, not merged.
 - Not covered: offline estimates, offline customers/products, background upload while the app is closed
   (the app must be opened), per-field merges.
@@ -356,6 +355,26 @@ the network. Estimates are not queued yet.
 - Not done: image caching/downsizing review, list item memoisation (rows take inline callbacks, so memo
   would not help), bundle-size analysis, startup-time profiling on a low-end Android phone. Those need a
   device.
+
+## Encrypted on-device data (Phase 16)
+- The offline queue and the saved customer/product/tax lists are encrypted with **XChaCha20-Poly1305**
+  (`@noble/ciphers`, audited, pure JS, no native code). Each write uses a fresh random 24-byte nonce from the
+  operating system's generator (`expo-crypto`). The file name is authenticated too, so a file copied under
+  another name does not decrypt, and any changed byte makes decryption fail rather than return altered data.
+- **Key**: 256 random bits per user, kept in the iOS Keychain / Android Keystore-backed secure store with
+  "when unlocked, this device only" (not backed up, not moved to a new phone). Sign-out deletes the files
+  *and then the key* (crypto-erase), so even a leftover copy of a file is unreadable.
+- **Upgrade**: a plain-text file from Phase 14 is still read once and rewritten encrypted immediately.
+- **If a file cannot be decrypted** (key lost, e.g. a restored backup on a new phone; or tampering) it is
+  deleted and treated as empty. **Unsynced drafts in that file are lost**; the app starts clean instead of
+  trusting or crashing on it. Drafts that already uploaded are unaffected.
+- **What this does and does not protect.** It protects the files from anyone who copies them off the
+  device or from a backup without the keychain. It does not protect against someone using the unlocked app,
+  malware with the app's own privileges, or a rooted/jailbroken device where the keychain can be read. The
+  optional biometric lock and the phone's passcode are the controls for those. The decrypted queue is held
+  in memory while the app runs.
+- Not encrypted: PDFs temporarily written to the cache for sharing, and the Supabase session (that already
+  lives in the secure store). Review the PDF cache if invoices are sensitive.
 
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.

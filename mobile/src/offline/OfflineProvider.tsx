@@ -16,7 +16,10 @@ import {
   setState,
 } from './outbox';
 import { loadReference, saveReference, SNAPSHOT_LIMIT, type ReferenceSnapshot } from './reference';
+import type { RandomBytes } from './crypto';
+import { createSecureStoreVault, secureRandom, type KeyVault } from './vault';
 import {
+  createEncryptedStore,
   createFileStore,
   loadOutbox,
   outboxFile,
@@ -37,15 +40,33 @@ const REFERENCE_MAX_AGE_MS = 10 * 60_000;
 export function OfflineProvider({
   children,
   store: injected,
+  vaultFor,
+  random,
 }: {
   children: ReactNode;
-  /** Tests pass an in-memory store. */
+  /** Tests pass an in-memory store (plain text unless `vaultFor` is also given). */
   store?: TextStore;
+  /** Where each user's encryption key lives. Defaults to the secure store. */
+  vaultFor?: (userId: string) => KeyVault;
+  random?: RandomBytes;
 }) {
   const { api, status, session } = useAuth();
   const qc = useQueryClient();
-  const store = useMemo(() => injected ?? createFileStore(), [injected]);
+  const files = useMemo(() => injected ?? createFileStore(), [injected]);
   const userId = status === 'signedIn' ? (session?.user.id ?? null) : null;
+  // Everything written to the device is encrypted with a per-user key from the secure store.
+  const encrypt = !injected || Boolean(vaultFor);
+  const bundle = useMemo(() => {
+    if (!userId) return null;
+    const vault = encrypt ? (vaultFor?.(userId) ?? createSecureStoreVault(userId)) : null;
+    return {
+      files,
+      vault,
+      store: vault ? createEncryptedStore(files, vault, random ?? secureRandom) : files,
+    };
+  }, [userId, files, encrypt, vaultFor, random]);
+  const store = bundle?.store ?? files;
+  const lastBundle = useRef(bundle);
 
   const [ops, setOps] = useState<DraftOp[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -72,13 +93,19 @@ export function OfflineProvider({
   useEffect(() => {
     const previous = userRef.current;
     if (previous && previous !== userId) {
-      void store.remove(outboxFile(previous));
-      void store.remove(referenceFile(previous));
+      // Delete the files, then the key: even a leftover copy of a file can no longer be read.
+      const old = lastBundle.current;
+      void (async () => {
+        await (old?.files ?? files).remove(outboxFile(previous));
+        await (old?.files ?? files).remove(referenceFile(previous));
+        await old?.vault?.destroy();
+      })();
       opsRef.current = [];
       snapshotRef.current = null;
       setOps([]);
     }
     userRef.current = userId;
+    lastBundle.current = bundle;
     if (!userId) {
       setLoaded(true); // nothing to read when signed out
       return;
@@ -100,7 +127,7 @@ export function OfflineProvider({
     return () => {
       cancelled = true;
     };
-  }, [userId, store]);
+  }, [userId, store, bundle, files]);
 
   const syncNow = useCallback(async () => {
     if (!userRef.current) return;
