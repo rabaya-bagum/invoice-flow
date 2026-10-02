@@ -25,6 +25,35 @@ pnpm --filter @invoiceflow/api dev          # http://localhost:4000/health
 pnpm --filter @invoiceflow/mobile start     # Expo dev server
 ```
 
+The API's `dev` script loads `api/.env` and then `api/.env.local` (later wins); blank `KEY=` lines
+count as unset. Start Expo from `mobile/` (or with the filter above), never from the repo root: the
+root has no app entry, and `expo install` there would pick npm over pnpm.
+
+### Web (browser)
+
+The app also runs in a browser for quick development checks:
+
+1. `api/.env.example` already allows the Expo web origin. If your `api/.env` predates that, add it to
+   `CORS_ORIGINS` (comma-separated) and restart the API:
+   ```
+   CORS_ORIGINS=http://localhost:5173,http://localhost:8081
+   ```
+2. Start the API, then Expo, and press `w` (or open http://localhost:8081):
+   ```bash
+   pnpm --filter @invoiceflow/api dev
+   pnpm --filter @invoiceflow/mobile start
+   ```
+3. For email links (verification, password reset), add `http://localhost:8081/auth/callback` and
+   `http://localhost:8081/auth/reset` to the Supabase redirect allow-list. This flow is untested on web.
+
+Web differs from the native app (it is a dev convenience, not a supported target):
+
+- `expo-secure-store` has no web build, so `mobile/metro.config.js` swaps in
+  `src/web/secure-store.ts`, which keeps the Supabase session and preferences in `localStorage`.
+- Offline drafts stay in memory only and are lost on reload: there is no secure place in a browser for
+  the offline encryption key.
+- Biometric unlock and push notifications are unavailable.
+
 ### Database
 
 - **Full Supabase stack:** `supabase start` applies `supabase/migrations` automatically.
