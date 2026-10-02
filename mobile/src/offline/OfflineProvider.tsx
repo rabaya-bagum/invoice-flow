@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { keys } from '../hooks/queries';
 import { useAuth } from '../store/auth';
 import { classifyError } from '../utils/errors';
@@ -21,6 +21,7 @@ import { createSecureStoreVault, secureRandom, type KeyVault } from './vault';
 import {
   createEncryptedStore,
   createFileStore,
+  createMemoryStore,
   loadOutbox,
   outboxFile,
   referenceFile,
@@ -52,10 +53,15 @@ export function OfflineProvider({
 }) {
   const { api, status, session } = useAuth();
   const qc = useQueryClient();
-  const files = useMemo(() => injected ?? createFileStore(), [injected]);
+  // Web has no secure key store, so nothing is persisted there: drafts live only for the session.
+  const memoryOnly = !injected && Platform.OS === 'web';
+  const files = useMemo(
+    () => injected ?? (memoryOnly ? createMemoryStore() : createFileStore()),
+    [injected, memoryOnly],
+  );
   const userId = status === 'signedIn' ? (session?.user.id ?? null) : null;
   // Everything written to the device is encrypted with a per-user key from the secure store.
-  const encrypt = !injected || Boolean(vaultFor);
+  const encrypt = memoryOnly ? false : !injected || Boolean(vaultFor);
   const bundle = useMemo(() => {
     if (!userId) return null;
     const vault = encrypt ? (vaultFor?.(userId) ?? createSecureStoreVault(userId)) : null;

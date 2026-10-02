@@ -15,10 +15,15 @@ export default tseslint.config(
     },
   },
   {
-    // Plain Node helper scripts used by tests (run outside Jest).
-    files: ['api/test/pdf-extract.js'],
+    // Plain Node helper scripts used by tests (run outside Jest), and Metro's config.
+    files: ['api/test/pdf-extract.js', 'mobile/metro.config.js'],
     languageOptions: {
-      globals: { process: 'readonly', Buffer: 'readonly', require: 'readonly' },
+      globals: {
+        process: 'readonly',
+        Buffer: 'readonly',
+        require: 'readonly',
+        __dirname: 'readonly',
+      },
     },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },

@@ -48,8 +48,8 @@ export async function registerForPush(
   api: Pick<ApiClient, 'registerPushToken'>,
 ): Promise<PushOutcome> {
   try {
-    // Simulators and emulators cannot receive remote pushes.
-    if (!Device.isDevice) return 'unsupported';
+    // Simulators, emulators and web builds cannot receive remote pushes.
+    if (Platform.OS === 'web' || !Device.isDevice) return 'unsupported';
     await ensureAndroidChannel();
 
     let perm = await Notifications.getPermissionsAsync();
