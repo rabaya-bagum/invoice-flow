@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+import { resolveDevApiUrl } from '../utils/url';
 import { createApiClient, type ApiClient } from './api';
 import { createAuthService, type AuthService } from './auth-service';
 import * as biometrics from './biometrics';
@@ -18,8 +20,9 @@ let services: Services | null = null;
 export function getServices(): Services {
   if (services) return services;
   const supabase = getSupabase();
-  const baseUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (!baseUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (!envUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
+  const baseUrl = __DEV__ ? resolveDevApiUrl(envUrl, Constants.expoConfig?.hostUri) : envUrl;
   const api = createApiClient({
     baseUrl,
     getToken: async () => (await supabase.auth.getSession()).data.session?.access_token ?? null,

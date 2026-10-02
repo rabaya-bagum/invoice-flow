@@ -11,6 +11,10 @@ describe('error mapping', () => {
     [{ status: 401 }, 'session_expired'],
     [{ name: 'AuthRetryableFetchError', message: 'x' }, 'network'],
     [new TypeError('Network request failed'), 'network'],
+    [
+      new Error('fetch failed: UnexpectedException: Could not connect to the server.'),
+      'network',
+    ],
     [{ status: 503 }, 'server'],
     [new Error('boom'), 'unknown'],
     [undefined, 'unknown'],

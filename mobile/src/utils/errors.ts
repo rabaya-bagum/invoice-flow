@@ -27,6 +27,8 @@ export function classifyError(err: unknown): ErrorKind {
     e.name === 'AbortError' ||
     msg.includes('network request failed') ||
     msg.includes('failed to fetch') ||
+    msg.includes('fetch failed') ||
+    msg.includes('could not connect to the server') ||
     msg.includes('timed out')
   ) {
     return 'network';
@@ -110,5 +112,10 @@ const CODE_MESSAGES: Record<string, string> = {
 export function friendlyMessage(err: unknown): string {
   const code = (err as ErrorLike | undefined)?.code;
   if (code && CODE_MESSAGES[code]) return CODE_MESSAGES[code];
-  return MESSAGES[classifyError(err)];
+  const kind = classifyError(err);
+  // The generic message hides the cause; surface the raw error in the Metro terminal while developing.
+  if (kind === 'unknown' && __DEV__ && process.env.NODE_ENV !== 'test') {
+    console.warn('[friendlyMessage] unclassified error:', err);
+  }
+  return MESSAGES[kind];
 }
