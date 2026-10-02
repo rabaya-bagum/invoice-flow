@@ -164,6 +164,13 @@ and due-soon invoices stay that way whenever you seed.
 See `api/.env.example` and `mobile/.env.example`. The Supabase **service-role key** and Stripe **secret
 key** are server-only. Only `EXPO_PUBLIC_*` values reach the app bundle, and anyone can read them.
 
+## Before you push
+
+`pnpm verify` runs exactly what CI runs on the code (format check, lint, build, typecheck, every test, and
+the database migration check). Run it before pushing: a failure there is the same failure CI would report.
+`pnpm format` fixes formatting; `pnpm --filter @invoiceflow/api docs:build` regenerates the API docs already
+formatted.
+
 ## Status
 
 Phases 1 (architecture, schema, money library, CI), 2 (authentication), 3 (business profile,

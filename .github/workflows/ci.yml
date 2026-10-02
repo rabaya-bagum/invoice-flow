@@ -12,6 +12,7 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -40,6 +41,10 @@ jobs:
 
   mobile-bundle:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        platform: [android, ios]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -48,10 +53,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @invoiceflow/mobile exec expo export --platform android --output-dir dist
+      - run: pnpm --filter @invoiceflow/mobile exec expo export --platform ${{ matrix.platform }} --output-dir dist
 
   database:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:16
@@ -69,6 +75,7 @@ jobs:
 
   api-image:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - run: docker build -f api/Dockerfile -t invoiceflow-api .

@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { buildOpenApi, buildPostman, OPS } from '../scripts/build-docs';
@@ -45,6 +46,17 @@ describe('API documentation', () => {
     );
     const unknown = refs.filter((r) => !((r as string) in spec.components.schemas));
     expect(unknown).toEqual([]);
+  });
+
+  it("commits the generated files in the repo's Prettier format (so format:check passes in CI)", () => {
+    const bin = path.join(root, 'node_modules/.bin/prettier');
+    const r = spawnSync(
+      bin,
+      ['--check', 'docs/openapi.json', 'docs/invoiceflow.postman_collection.json'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    expect(r.stdout + r.stderr).toContain('All matched files use Prettier code style');
+    expect(r.status).toBe(0);
   });
 
   it('keeps the committed files in sync with the generator', () => {

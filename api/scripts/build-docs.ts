@@ -1000,14 +1000,29 @@ export function buildPostman() {
   };
 }
 
+/** The repo's Prettier settings, so generated files pass `pnpm format:check` exactly as committed. */
+export async function prettyJson(value: unknown): Promise<string> {
+  // Loaded here, not at the top, so importing this file (tests) never needs Prettier.
+  const { format, resolveConfig } = await import('prettier');
+  const file = path.join(__dirname, '../../docs/x.json');
+  const config = (await resolveConfig(file)) ?? {};
+  return format(JSON.stringify(value, null, 2) + '\n', {
+    ...config,
+    parser: 'json',
+    filepath: file,
+  });
+}
+
 if (require.main === module) {
-  const docs = path.join(__dirname, '../../docs');
-  writeFileSync(path.join(docs, 'openapi.json'), JSON.stringify(buildOpenApi(), null, 2) + '\n');
-  writeFileSync(
-    path.join(docs, 'invoiceflow.postman_collection.json'),
-    JSON.stringify(buildPostman(), null, 2) + '\n',
-  );
-  console.log(
-    `Wrote docs/openapi.json and docs/invoiceflow.postman_collection.json (${OPS.length} operations)`,
-  );
+  void (async () => {
+    const docs = path.join(__dirname, '../../docs');
+    writeFileSync(path.join(docs, 'openapi.json'), await prettyJson(buildOpenApi()));
+    writeFileSync(
+      path.join(docs, 'invoiceflow.postman_collection.json'),
+      await prettyJson(buildPostman()),
+    );
+    console.log(
+      `Wrote docs/openapi.json and docs/invoiceflow.postman_collection.json (${OPS.length} operations)`,
+    );
+  })();
 }
