@@ -69,7 +69,10 @@
         "properties": {
           "error": {
             "type": "object",
-            "required": ["code", "message"],
+            "required": [
+              "code",
+              "message"
+            ],
             "properties": {
               "code": {
                 "type": "string",
@@ -96,11 +99,15 @@
       },
       "DeleteAccount": {
         "type": "object",
-        "required": ["confirm"],
+        "required": [
+          "confirm"
+        ],
         "properties": {
           "confirm": {
             "type": "string",
-            "enum": ["DELETE"]
+            "enum": [
+              "DELETE"
+            ]
           }
         }
       },
@@ -271,7 +278,10 @@
       },
       "ProductInput": {
         "type": "object",
-        "required": ["name", "priceMinor"],
+        "required": [
+          "name",
+          "priceMinor"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -337,7 +347,10 @@
       },
       "TaxRateInput": {
         "type": "object",
-        "required": ["name", "rateBps"],
+        "required": [
+          "name",
+          "rateBps"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -356,7 +369,11 @@
       },
       "InvoiceItemInput": {
         "type": "object",
-        "required": ["description", "quantityMilli", "unitPriceMinor"],
+        "required": [
+          "description",
+          "quantityMilli",
+          "unitPriceMinor"
+        ],
         "properties": {
           "productId": {
             "type": "string",
@@ -382,7 +399,10 @@
             "maxItems": 5,
             "items": {
               "type": "object",
-              "required": ["name", "rateBps"],
+              "required": [
+                "name",
+                "rateBps"
+              ],
               "properties": {
                 "name": {
                   "type": "string",
@@ -398,9 +418,32 @@
           }
         }
       },
+      "InvoiceCreate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/InvoiceInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Optional client-generated id (offline drafts). The same id twice answers 409 ID_TAKEN, so retries are safe."
+              }
+            }
+          }
+        ]
+      },
       "InvoiceInput": {
         "type": "object",
-        "required": ["customerId", "issueDate", "dueDate", "currency", "items"],
+        "required": [
+          "customerId",
+          "issueDate",
+          "dueDate",
+          "currency",
+          "items"
+        ],
         "description": "Totals are never accepted; the server computes them. Unknown fields are ignored.",
         "properties": {
           "customerId": {
@@ -429,11 +472,17 @@
           },
           "discount": {
             "type": "object",
-            "required": ["type", "value"],
+            "required": [
+              "type",
+              "value"
+            ],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": ["percent", "fixed"]
+                "enum": [
+                  "percent",
+                  "fixed"
+                ]
               },
               "value": {
                 "type": "integer",
@@ -484,7 +533,15 @@
           },
           "status": {
             "type": "string",
-            "enum": ["draft", "sent", "viewed", "partially_paid", "paid", "cancelled", "refunded"]
+            "enum": [
+              "draft",
+              "sent",
+              "viewed",
+              "partially_paid",
+              "paid",
+              "cancelled",
+              "refunded"
+            ]
           },
           "displayStatus": {
             "type": "string",
@@ -526,7 +583,13 @@
       },
       "EstimateInput": {
         "type": "object",
-        "required": ["customerId", "issueDate", "expiryDate", "currency", "items"],
+        "required": [
+          "customerId",
+          "issueDate",
+          "expiryDate",
+          "currency",
+          "items"
+        ],
         "description": "Same as InvoiceInput, with expiryDate instead of dueDate.",
         "properties": {
           "customerId": {
@@ -558,7 +621,10 @@
             "properties": {
               "type": {
                 "type": "string",
-                "enum": ["percent", "fixed"]
+                "enum": [
+                  "percent",
+                  "fixed"
+                ]
               },
               "value": {
                 "type": "integer"
@@ -607,7 +673,13 @@
           },
           "status": {
             "type": "string",
-            "enum": ["draft", "sent", "viewed", "accepted", "rejected"]
+            "enum": [
+              "draft",
+              "sent",
+              "viewed",
+              "accepted",
+              "rejected"
+            ]
           },
           "displayStatus": {
             "type": "string",
@@ -647,21 +719,33 @@
       },
       "EstimateTransition": {
         "type": "object",
-        "required": ["to"],
+        "required": [
+          "to"
+        ],
         "properties": {
           "to": {
             "type": "string",
-            "enum": ["sent", "accepted", "rejected"]
+            "enum": [
+              "sent",
+              "accepted",
+              "rejected"
+            ]
           }
         }
       },
       "Transition": {
         "type": "object",
-        "required": ["to"],
+        "required": [
+          "to"
+        ],
         "properties": {
           "to": {
             "type": "string",
-            "enum": ["sent", "cancelled", "paid"]
+            "enum": [
+              "sent",
+              "cancelled",
+              "paid"
+            ]
           }
         }
       },
@@ -687,7 +771,9 @@
       },
       "CreateIntent": {
         "type": "object",
-        "required": ["invoiceId"],
+        "required": [
+          "invoiceId"
+        ],
         "properties": {
           "invoiceId": {
             "type": "string",
@@ -712,7 +798,10 @@
       },
       "PushToken": {
         "type": "object",
-        "required": ["token", "platform"],
+        "required": [
+          "token",
+          "platform"
+        ],
         "properties": {
           "token": {
             "type": "string",
@@ -720,13 +809,18 @@
           },
           "platform": {
             "type": "string",
-            "enum": ["ios", "android"]
+            "enum": [
+              "ios",
+              "android"
+            ]
           }
         }
       },
       "PushTokenRemove": {
         "type": "object",
-        "required": ["token"],
+        "required": [
+          "token"
+        ],
         "properties": {
           "token": {
             "type": "string",
@@ -785,7 +879,11 @@
           },
           "period": {
             "type": "string",
-            "enum": ["all", "this_month", "this_year"]
+            "enum": [
+              "all",
+              "this_month",
+              "this_year"
+            ]
           },
           "currencies": {
             "type": "array",
@@ -813,7 +911,9 @@
   "paths": {
     "/health": {
       "get": {
-        "tags": ["System"],
+        "tags": [
+          "System"
+        ],
         "summary": "Liveness probe",
         "operationId": "get_health",
         "responses": {
@@ -839,7 +939,9 @@
     },
     "/v1/me": {
       "get": {
-        "tags": ["Account"],
+        "tags": [
+          "Account"
+        ],
         "summary": "Current user and business",
         "operationId": "get_v1_me",
         "responses": {
@@ -887,7 +989,9 @@
         ]
       },
       "delete": {
-        "tags": ["Account"],
+        "tags": [
+          "Account"
+        ],
         "summary": "Delete the account and all its data",
         "operationId": "delete_v1_me",
         "requestBody": {
@@ -940,7 +1044,9 @@
     },
     "/v1/dashboard": {
       "get": {
-        "tags": ["Dashboard"],
+        "tags": [
+          "Dashboard"
+        ],
         "summary": "Totals per currency, recent invoices and payments",
         "operationId": "get_v1_dashboard",
         "parameters": [
@@ -1000,7 +1106,9 @@
     },
     "/v1/business": {
       "get": {
-        "tags": ["Business"],
+        "tags": [
+          "Business"
+        ],
         "summary": "Business profile",
         "operationId": "get_v1_business",
         "responses": {
@@ -1048,7 +1156,9 @@
         ]
       },
       "put": {
-        "tags": ["Business"],
+        "tags": [
+          "Business"
+        ],
         "summary": "Update business profile (only sent fields change)",
         "operationId": "put_v1_business",
         "requestBody": {
@@ -1108,7 +1218,9 @@
     },
     "/v1/business/{kind}": {
       "put": {
-        "tags": ["Business"],
+        "tags": [
+          "Business"
+        ],
         "summary": "Upload logo or signature (kind = logo | signature; PNG/JPEG, max 1 MB)",
         "operationId": "put_v1_business_kind",
         "parameters": [
@@ -1159,7 +1271,9 @@
         ]
       },
       "get": {
-        "tags": ["Business"],
+        "tags": [
+          "Business"
+        ],
         "summary": "Download logo or signature",
         "operationId": "get_v1_business_kind",
         "parameters": [
@@ -1210,7 +1324,9 @@
         ]
       },
       "delete": {
-        "tags": ["Business"],
+        "tags": [
+          "Business"
+        ],
         "summary": "Remove logo or signature",
         "operationId": "delete_v1_business_kind",
         "parameters": [
@@ -1263,7 +1379,9 @@
     },
     "/v1/customers": {
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "List customers",
         "operationId": "get_v1_customers",
         "parameters": [
@@ -1337,7 +1455,9 @@
         ]
       },
       "post": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Create a customer",
         "operationId": "post_v1_customers",
         "requestBody": {
@@ -1397,7 +1517,9 @@
     },
     "/v1/customers/{id}": {
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Get a customer",
         "operationId": "get_v1_customers_id",
         "parameters": [
@@ -1456,7 +1578,9 @@
         ]
       },
       "put": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Replace a customer",
         "operationId": "put_v1_customers_id",
         "parameters": [
@@ -1525,7 +1649,9 @@
         ]
       },
       "delete": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "Soft-delete a customer (invoices keep their history)",
         "operationId": "delete_v1_customers_id",
         "parameters": [
@@ -1579,7 +1705,9 @@
     },
     "/v1/customers/{id}/invoices": {
       "get": {
-        "tags": ["Customers"],
+        "tags": [
+          "Customers"
+        ],
         "summary": "A customer's invoices",
         "operationId": "get_v1_customers_id_invoices",
         "parameters": [
@@ -1688,7 +1816,9 @@
     },
     "/v1/products": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "List products and services",
         "operationId": "get_v1_products",
         "parameters": [
@@ -1778,7 +1908,9 @@
         ]
       },
       "post": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Create a product",
         "operationId": "post_v1_products",
         "requestBody": {
@@ -1838,7 +1970,9 @@
     },
     "/v1/products/{id}": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Get a product",
         "operationId": "get_v1_products_id",
         "parameters": [
@@ -1897,7 +2031,9 @@
         ]
       },
       "put": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Replace a product",
         "operationId": "put_v1_products_id",
         "parameters": [
@@ -1966,7 +2102,9 @@
         ]
       },
       "delete": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Delete a product",
         "operationId": "delete_v1_products_id",
         "parameters": [
@@ -2020,7 +2158,9 @@
     },
     "/v1/tax-rates": {
       "get": {
-        "tags": ["Tax rates"],
+        "tags": [
+          "Tax rates"
+        ],
         "summary": "List tax rates",
         "operationId": "get_v1_tax_rates",
         "responses": {
@@ -2061,7 +2201,9 @@
         ]
       },
       "post": {
-        "tags": ["Tax rates"],
+        "tags": [
+          "Tax rates"
+        ],
         "summary": "Create a tax rate",
         "operationId": "post_v1_tax_rates",
         "requestBody": {
@@ -2114,7 +2256,9 @@
     },
     "/v1/tax-rates/{id}": {
       "put": {
-        "tags": ["Tax rates"],
+        "tags": [
+          "Tax rates"
+        ],
         "summary": "Update a tax rate",
         "operationId": "put_v1_tax_rates_id",
         "parameters": [
@@ -2176,7 +2320,9 @@
         ]
       },
       "delete": {
-        "tags": ["Tax rates"],
+        "tags": [
+          "Tax rates"
+        ],
         "summary": "Delete a tax rate",
         "operationId": "delete_v1_tax_rates_id",
         "parameters": [
@@ -2230,7 +2376,9 @@
     },
     "/v1/invoices": {
       "get": {
-        "tags": ["Invoices"],
+        "tags": [
+          "Invoices"
+        ],
         "summary": "List invoices (status filter includes overdue and outstanding)",
         "operationId": "get_v1_invoices",
         "parameters": [
@@ -2337,7 +2485,9 @@
         ]
       },
       "post": {
-        "tags": ["Invoices"],
+        "tags": [
+          "Invoices"
+        ],
         "summary": "Create an invoice (totals are computed by the server)",
         "operationId": "post_v1_invoices",
         "requestBody": {
@@ -2345,7 +2495,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/InvoiceInput"
+                "$ref": "#/components/schemas/InvoiceCreate"
               }
             }
           }
@@ -2397,7 +2547,9 @@
     },
     "/v1/invoices/{id}": {
       "get": {
-        "tags": ["Invoices"],
+        "tags": [
+          "Invoices"
+        ],
         "summary": "Get an invoice with items and tax breakdown",
         "operationId": "get_v1_invoices_id",
         "parameters": [
@@ -2456,7 +2608,9 @@
         ]
       },
       "put": {
-        "tags": ["Invoices"],
+        "tags": [
+          "Invoices"
+        ],
         "summary": "Replace an invoice (only before money is paid)",
         "operationId": "put_v1_invoices_id",
         "parameters": [
@@ -2525,7 +2679,9 @@
         ]
       },
       "delete": {
-        "tags": ["Invoices"],
+        "tags": [
+          "Invoices"
+        ],
         "summary": "Delete a draft",
         "operationId": "delete_v1_invoices_id",
         "parameters": [
@@ -2579,7 +2735,9 @@
     },
     "/v1/invoices/{id}/transition": {
       "post": {
-        "tags": ["Invoices"],
+        "tags": [
+          "Invoices"
+        ],
         "summary": "Move to sent, cancelled or paid (allowed transitions only)",
         "operationId": "post_v1_invoices_id_transition",
         "parameters": [
@@ -2650,7 +2808,9 @@
     },
     "/v1/invoices/{id}/activity": {
       "get": {
-        "tags": ["Invoices"],
+        "tags": [
+          "Invoices"
+        ],
         "summary": "Activity timeline",
         "operationId": "get_v1_invoices_id_activity",
         "parameters": [
@@ -2704,7 +2864,9 @@
     },
     "/v1/estimates": {
       "get": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "List estimates (status filter includes derived \"expired\")",
         "operationId": "get_v1_estimates",
         "parameters": [
@@ -2811,7 +2973,9 @@
         ]
       },
       "post": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Create an estimate (numbered EST-0001..; totals computed by the server)",
         "operationId": "post_v1_estimates",
         "requestBody": {
@@ -2871,7 +3035,9 @@
     },
     "/v1/estimates/{id}": {
       "get": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Get an estimate",
         "operationId": "get_v1_estimates_id",
         "parameters": [
@@ -2930,7 +3096,9 @@
         ]
       },
       "put": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Replace an estimate (until accepted, declined or converted)",
         "operationId": "put_v1_estimates_id",
         "parameters": [
@@ -2999,7 +3167,9 @@
         ]
       },
       "delete": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Delete a draft estimate",
         "operationId": "delete_v1_estimates_id",
         "parameters": [
@@ -3053,7 +3223,9 @@
     },
     "/v1/estimates/{id}/transition": {
       "post": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Mark sent, accepted or declined (the owner records the customer's decision)",
         "operationId": "post_v1_estimates_id_transition",
         "parameters": [
@@ -3124,7 +3296,9 @@
     },
     "/v1/estimates/{id}/convert": {
       "post": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Turn into a DRAFT invoice with the same lines, once, atomically",
         "operationId": "post_v1_estimates_id_convert",
         "parameters": [
@@ -3178,7 +3352,9 @@
     },
     "/v1/estimates/{id}/share-link": {
       "post": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Create (or return) the customer-facing estimate link",
         "operationId": "post_v1_estimates_id_share_link",
         "parameters": [
@@ -3230,7 +3406,9 @@
         ]
       },
       "delete": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Revoke the estimate link",
         "operationId": "delete_v1_estimates_id_share_link",
         "parameters": [
@@ -3284,7 +3462,9 @@
     },
     "/v1/estimates/{id}/pdf": {
       "post": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Render the estimate as a PDF",
         "operationId": "post_v1_estimates_id_pdf",
         "parameters": [
@@ -3338,7 +3518,9 @@
     },
     "/v1/estimates/{id}/send": {
       "post": {
-        "tags": ["Estimates"],
+        "tags": [
+          "Estimates"
+        ],
         "summary": "Email the estimate PDF (marks a draft as sent only after delivery)",
         "operationId": "post_v1_estimates_id_send",
         "parameters": [
@@ -3402,7 +3584,9 @@
     },
     "/v1/invoices/{id}/pdf": {
       "post": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Render the invoice as a PDF",
         "operationId": "post_v1_invoices_id_pdf",
         "parameters": [
@@ -3456,7 +3640,9 @@
     },
     "/v1/invoices/{id}/send": {
       "post": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Email the invoice (marks a draft as sent only after delivery)",
         "operationId": "post_v1_invoices_id_send",
         "parameters": [
@@ -3520,7 +3706,9 @@
     },
     "/v1/invoices/{id}/share-link": {
       "post": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Create (or return) the public pay link",
         "operationId": "post_v1_invoices_id_share_link",
         "parameters": [
@@ -3572,7 +3760,9 @@
         ]
       },
       "delete": {
-        "tags": ["Documents"],
+        "tags": [
+          "Documents"
+        ],
         "summary": "Revoke the public pay link",
         "operationId": "delete_v1_invoices_id_share_link",
         "parameters": [
@@ -3626,7 +3816,9 @@
     },
     "/v1/payments/connect/status": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Stripe Connect status",
         "operationId": "get_v1_payments_connect_status",
         "responses": {
@@ -3669,7 +3861,9 @@
     },
     "/v1/payments/connect/onboard": {
       "post": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Start or resume Stripe Connect onboarding",
         "operationId": "post_v1_payments_connect_onboard",
         "responses": {
@@ -3712,7 +3906,9 @@
     },
     "/v1/payments/create-intent": {
       "post": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Create a PaymentIntent for an invoice",
         "operationId": "post_v1_payments_create_intent",
         "requestBody": {
@@ -3765,7 +3961,9 @@
     },
     "/v1/payments": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Payment history",
         "operationId": "get_v1_payments",
         "parameters": [
@@ -3842,7 +4040,9 @@
     },
     "/v1/payments/{id}": {
       "get": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Payment detail",
         "operationId": "get_v1_payments_id",
         "parameters": [
@@ -3896,7 +4096,9 @@
     },
     "/v1/payments/{id}/refund": {
       "post": {
-        "tags": ["Payments"],
+        "tags": [
+          "Payments"
+        ],
         "summary": "Refund fully or partially (applied when Stripe confirms)",
         "operationId": "post_v1_payments_id_refund",
         "parameters": [
@@ -3960,7 +4162,9 @@
     },
     "/v1/notifications": {
       "get": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Notification centre",
         "operationId": "get_v1_notifications",
         "responses": {
@@ -4003,7 +4207,9 @@
     },
     "/v1/notifications/read-all": {
       "post": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Mark all read",
         "operationId": "post_v1_notifications_read_all",
         "responses": {
@@ -4046,7 +4252,9 @@
     },
     "/v1/notifications/{id}/read": {
       "post": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Mark one read",
         "operationId": "post_v1_notifications_id_read",
         "parameters": [
@@ -4100,7 +4308,9 @@
     },
     "/v1/push-tokens": {
       "post": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Register an Expo push token",
         "operationId": "post_v1_push_tokens",
         "requestBody": {
@@ -4151,7 +4361,9 @@
         ]
       },
       "delete": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "Remove a push token",
         "operationId": "delete_v1_push_tokens",
         "requestBody": {
@@ -4204,7 +4416,9 @@
     },
     "/v1/payments/webhook": {
       "post": {
-        "tags": ["Webhooks"],
+        "tags": [
+          "Webhooks"
+        ],
         "summary": "Stripe webhook (signature-verified, raw body)",
         "operationId": "post_v1_payments_webhook",
         "responses": {
@@ -4230,7 +4444,9 @@
     },
     "/pay/{token}": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Customer-facing invoice and pay page (HTML)",
         "operationId": "get_pay_token",
         "parameters": [
@@ -4266,7 +4482,9 @@
     },
     "/public/invoices/{token}": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Sanitised invoice JSON",
         "operationId": "get_public_invoices_token",
         "parameters": [
@@ -4302,7 +4520,9 @@
     },
     "/public/invoices/{token}/pdf": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Invoice PDF",
         "operationId": "get_public_invoices_token_pdf",
         "parameters": [
@@ -4338,7 +4558,9 @@
     },
     "/public/invoices/{token}/view": {
       "post": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Record that the customer viewed the invoice",
         "operationId": "post_public_invoices_token_view",
         "parameters": [
@@ -4374,7 +4596,9 @@
     },
     "/public/invoices/{token}/payment-intent": {
       "post": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Start a payment from the public page",
         "operationId": "post_public_invoices_token_payment_intent",
         "parameters": [
@@ -4410,7 +4634,9 @@
     },
     "/estimate/{token}": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Customer-facing estimate page (HTML) with Accept / Decline",
         "operationId": "get_estimate_token",
         "parameters": [
@@ -4446,7 +4672,9 @@
     },
     "/public/estimates/{token}": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Sanitised estimate JSON",
         "operationId": "get_public_estimates_token",
         "parameters": [
@@ -4482,7 +4710,9 @@
     },
     "/public/estimates/{token}/pdf": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Estimate PDF",
         "operationId": "get_public_estimates_token_pdf",
         "parameters": [
@@ -4518,7 +4748,9 @@
     },
     "/public/estimates/{token}/view": {
       "post": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Record that the customer viewed the estimate",
         "operationId": "post_public_estimates_token_view",
         "parameters": [
@@ -4554,7 +4786,9 @@
     },
     "/public/estimates/{token}/respond": {
       "post": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Customer accepts or declines ({decision: accept|decline, name?}); the same answer twice is a no-op, the opposite answer is 409",
         "operationId": "post_public_estimates_token_respond",
         "parameters": [
@@ -4590,7 +4824,9 @@
     },
     "/stripe/connect/return": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Stripe onboarding return page",
         "operationId": "get_stripe_connect_return",
         "responses": {
@@ -4616,7 +4852,9 @@
     },
     "/stripe/connect/refresh": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Stripe onboarding refresh page",
         "operationId": "get_stripe_connect_refresh",
         "responses": {
@@ -4642,7 +4880,9 @@
     },
     "/.well-known/apple-developer-merchantid-domain-association": {
       "get": {
-        "tags": ["Public"],
+        "tags": [
+          "Public"
+        ],
         "summary": "Apple Pay domain verification file",
         "operationId": "get_well_known_apple_developer_merchantid_domain_association",
         "responses": {

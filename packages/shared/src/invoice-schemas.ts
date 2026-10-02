@@ -83,6 +83,13 @@ export const invoiceInputSchema = z.object({
 });
 export type InvoiceWriteInput = z.infer<typeof invoiceInputSchema>;
 
+/**
+ * Creating may carry a client-generated id so a phone can create a draft offline and retry safely:
+ * the same id twice never makes two invoices. Updates never accept an id.
+ */
+export const invoiceCreateSchema = invoiceInputSchema.extend({ id: z.string().uuid().optional() });
+export type InvoiceCreateInput = z.infer<typeof invoiceCreateSchema>;
+
 export const transitionInputSchema = z.object({ to: z.enum(MANUAL_TRANSITIONS) });
 
 const listStatus = z.enum([

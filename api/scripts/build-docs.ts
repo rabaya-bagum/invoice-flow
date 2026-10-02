@@ -197,7 +197,7 @@ export const OPS: Op[] = [
     path: '/v1/invoices',
     tag: 'Invoices',
     summary: 'Create an invoice (totals are computed by the server)',
-    body: 'InvoiceInput',
+    body: 'InvoiceCreate',
     ok: 'Invoice',
     status: 201,
   },
@@ -634,6 +634,21 @@ export const SCHEMAS: Record<string, object> = {
         },
       },
     },
+  },
+  InvoiceCreate: {
+    allOf: [
+      { $ref: '#/components/schemas/InvoiceInput' },
+      {
+        type: 'object',
+        properties: {
+          id: {
+            ...uuid,
+            description:
+              'Optional client-generated id (offline drafts). The same id twice answers 409 ID_TAKEN, so retries are safe.',
+          },
+        },
+      },
+    ],
   },
   InvoiceInput: {
     type: 'object',

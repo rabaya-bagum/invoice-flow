@@ -153,8 +153,13 @@ export function createInvoiceService(db: Database) {
     actor: Actor,
     input: InvoiceWriteInput,
     totals: InvoiceTotals,
+    clientId?: string,
   ): Promise<string> {
     const r = repo(tx);
+    // A client-chosen id is never reused, whoever owns it: same answer for "mine" and "someone else's".
+    if (clientId && (await r.idTaken(clientId))) {
+      throw new AppError(409, 'ID_TAKEN', 'This invoice was already created');
+    }
     await validateReferences(r, actor.businessId, input);
 
     let newId: string | null = null;
@@ -164,10 +169,12 @@ export function createInvoiceService(db: Database) {
       // Savepoint: a taken number must not abort the whole transaction.
       await tx.query('SAVEPOINT invoice_number');
       try {
-        newId = await r.insert(actor.businessId, toWrite(input, totals, number));
+        newId = await r.insert(actor.businessId, toWrite(input, totals, number), clientId);
         await tx.query('RELEASE SAVEPOINT invoice_number');
       } catch (e) {
         await tx.query('ROLLBACK TO SAVEPOINT invoice_number');
+        if ((e as { constraint?: string })?.constraint === 'invoices_pkey')
+          throw new AppError(409, 'ID_TAKEN', 'This invoice was already created');
         if (!uniqueNumberViolation(e)) throw e;
         if (input.number)
           throw new AppError(409, 'NUMBER_EXISTS', `Invoice number ${number} is already used`);
@@ -204,9 +211,9 @@ export function createInvoiceService(db: Database) {
       return toDto(inv);
     },
 
-    async create(actor: Actor, input: InvoiceWriteInput) {
+    async create(actor: Actor, input: InvoiceWriteInput, clientId?: string) {
       const totals = computeTotals(input);
-      const id = await db.transaction((tx) => createWithin(tx, actor, input, totals));
+      const id = await db.transaction((tx) => createWithin(tx, actor, input, totals, clientId));
       return toDto((await repo().get(actor.businessId, id)) as InvoiceRecord, warningsFor(input));
     },
 

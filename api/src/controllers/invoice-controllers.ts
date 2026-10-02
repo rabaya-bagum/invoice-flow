@@ -1,5 +1,6 @@
 import {
   estimateInputSchema,
+  invoiceCreateSchema,
   estimateListQuerySchema,
   estimateTransitionSchema,
   invoiceInputSchema,
@@ -30,7 +31,8 @@ export function createInvoiceController(svc: InvoiceService) {
     get: async (req: Request, res: Response) =>
       void res.json(await svc.get(businessId(req), idParam(req))),
     async create(req: Request, res: Response) {
-      res.status(201).json(await svc.create(actor(req), invoiceInputSchema.parse(req.body)));
+      const { id, ...input } = invoiceCreateSchema.parse(req.body);
+      res.status(201).json(await svc.create(actor(req), input, id));
     },
     update: async (req: Request, res: Response) =>
       void res.json(await svc.update(actor(req), idParam(req), invoiceInputSchema.parse(req.body))),
