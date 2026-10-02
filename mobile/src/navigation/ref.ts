@@ -13,13 +13,13 @@ export function openTarget(target: NotificationTarget | null) {
     pending = target;
     return;
   }
-  navigationRef.navigate(target.tab, { screen: target.screen, params: target.params });
+  navigationRef.navigate(target.tab, { screen: target.screen, params: target.params } as never);
 }
 
 export function flushPendingTarget() {
   if (pending && navigationRef.isReady()) {
     const t = pending;
     pending = null;
-    navigationRef.navigate(t.tab, { screen: t.screen, params: t.params });
+    navigationRef.navigate(t.tab, { screen: t.screen, params: t.params } as never);
   }
 }

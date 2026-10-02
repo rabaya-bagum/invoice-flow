@@ -3,6 +3,9 @@ import type { Database } from '../db';
 import { createInvoiceRepository } from '../repositories/invoice-repository';
 import { createNotificationRepository } from '../repositories/notification-repository';
 
+/** More than this many newly overdue invoices for one business in a batch become one summary. */
+const DIGEST_ABOVE = 5;
+
 const money = (n: number, cur: string) =>
   isSupportedCurrency(cur) ? formatMoney(n, cur) : `${n} ${cur}`;
 
@@ -44,22 +47,44 @@ export function createOverdueService(db: Database) {
         );
         const inv = createInvoiceRepository(tx);
         const notifications = createNotificationRepository(tx);
+        // After downtime (or a first deploy) one business can have hundreds of invoices go overdue at
+        // once. Every invoice still gets its timeline entry, but the owner gets ONE summary
+        // notification instead of a flood of pushes.
+        const perBusiness = new Map<string, typeof claimed.rows>();
         for (const row of claimed.rows) {
-          const customer = await inv.customerForPrint(row.business_id, row.customer_id);
-          const balance = money(row.balance_due_minor, row.currency);
-          await inv.addActivity(
-            row.business_id,
-            row.id,
-            'overdue',
-            `Invoice is now overdue (${balance} due)`,
-          );
-          await notifications.add({
-            businessId: row.business_id,
-            type: 'invoice_overdue',
-            title: 'Invoice overdue',
-            body: `Invoice ${row.number} for ${customer?.name ?? 'a customer'} is now overdue (${balance} due).`,
-            data: { invoiceId: row.id },
-          });
+          const list = perBusiness.get(row.business_id) ?? [];
+          list.push(row);
+          perBusiness.set(row.business_id, list);
+        }
+        for (const [businessId, rows] of perBusiness) {
+          for (const row of rows) {
+            await inv.addActivity(
+              businessId,
+              row.id,
+              'overdue',
+              `Invoice is now overdue (${money(row.balance_due_minor, row.currency)} due)`,
+            );
+          }
+          if (rows.length > DIGEST_ABOVE) {
+            await notifications.add({
+              businessId,
+              type: 'invoices_overdue',
+              title: 'Invoices overdue',
+              body: `${rows.length} invoices are now overdue. Open Invoices and filter by Overdue to follow up.`,
+              data: { count: rows.length, list: 'overdue' },
+            });
+            continue;
+          }
+          for (const row of rows) {
+            const customer = await inv.customerForPrint(businessId, row.customer_id);
+            await notifications.add({
+              businessId,
+              type: 'invoice_overdue',
+              title: 'Invoice overdue',
+              body: `Invoice ${row.number} for ${customer?.name ?? 'a customer'} is now overdue (${money(row.balance_due_minor, row.currency)} due).`,
+              data: { invoiceId: row.id },
+            });
+          }
         }
         return claimed.rows.length;
       });

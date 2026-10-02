@@ -23,7 +23,15 @@ export interface Database extends Queryable {
 }
 
 export function createPool(connectionString: string): Pool {
-  return new Pool({ connectionString, max: 10, idleTimeoutMillis: 30_000 });
+  return new Pool({
+    connectionString,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    // A stuck query or a forgotten transaction must not hold a connection (and a row lock) forever.
+    connectionTimeoutMillis: 5_000,
+    statement_timeout: 20_000,
+    idle_in_transaction_session_timeout: 30_000,
+  });
 }
 
 export function createDatabase(pool: Pool): Database {

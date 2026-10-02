@@ -329,6 +329,34 @@ the network. Estimates are not queued yet.
 - Not covered: offline estimates, offline customers/products, background upload while the app is closed
   (the app must be opened), per-field merges.
 
+## Polish and hardening (Phase 15)
+- **Contrast (WCAG AA, 4.5:1) is now tested**, light and dark: text/muted/primary/danger on both
+  backgrounds, button text, and every status badge on its own tint. It found real failures: badge colours
+  were light-mode colours reused in dark mode (down to 2.4:1), `muted` text on cards was 4.43:1, and
+  `danger` on cards was 4.4999:1. Badge colours are now a per-scheme palette (`src/theme/status-colors.ts`),
+  `muted` and `danger` were darkened slightly in light mode.
+- **Structural accessibility audit** renders 18 screens and fails on an unnamed button, an unlabelled
+  text field/switch/image, or a tappable element without a role. It also proves it can fail (negative
+  controls). It checks *structure*, not behaviour: it cannot replace a screen-reader pass on a device
+  (VoiceOver/TalkBack focus order, large text, reduced motion), which is on the launch checklist.
+- **Error messages**: a test cross-checks every error code the API can send against the app's plain-language
+  list, in both directions (no missing message, no dead message). It found 15 codes with no message, so
+  estimate, offline and payment errors fell back to "Something went wrong". An explicit allowlist records
+  the codes that are intentionally not translated and why. `VERSION_CONFLICT` no longer says "invoice".
+- **Performance smoke test** (20,000 invoices, 40,000 lines, one business) over list, deep paging, status
+  filters (including derived overdue/outstanding), search, date range, dashboard, detail and payments:
+  every call ran in tens of milliseconds locally; the bounds in the test are 0.8-2.5 s so it catches a
+  full scan or an N+1, not small regressions. It cleans up after itself.
+- **Overdue sweep**: it was one-by-one per invoice (6 s for ~10,000 newly overdue invoices, and one push each).
+  It now writes timeline entries in a tight loop and sends **one summary notification per business per batch
+  when more than 5 go overdue at once** (after downtime or a first deploy); a few overdue invoices still
+  notify individually. Tapping the summary opens the Overdue list. 6 s -> 0.24 s on the same data.
+- **Database pool** now has a 20 s statement timeout, 30 s idle-in-transaction timeout and 5 s connection
+  wait, so a stuck query or forgotten transaction cannot hold a connection and row locks forever.
+- Not done: image caching/downsizing review, list item memoisation (rows take inline callbacks, so memo
+  would not help), bundle-size analysis, startup-time profiling on a low-end Android phone. Those need a
+  device.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

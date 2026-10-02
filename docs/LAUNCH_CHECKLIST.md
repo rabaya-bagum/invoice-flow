@@ -45,6 +45,9 @@ Resend, Expo or Supabase accounts from the build environment.
 - [ ] `eas build --profile preview` and test on real phones: push tokens and delivery, Apple/Google Pay
       on the pay page, Face ID lock, PDF share, deep link back from Stripe onboarding, airplane mode.
 - [ ] Test with a real Stripe test-mode Connect account end to end (onboard, pay, refund).
+- [ ] Accessibility on devices: VoiceOver (iOS) and TalkBack (Android) through sign in, a new invoice and the
+      pay flow; largest system text size; bold text; reduce motion; dark mode. The automated audit only
+      checks structure and colour contrast.
 - [ ] Offline drafts on a real phone: airplane mode, create a draft, edit it, kill the app, reopen online and
       confirm it uploads once; edit the same draft on two phones to see the conflict choices; sign out with
       an unsynced draft.

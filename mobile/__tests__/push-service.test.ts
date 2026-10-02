@@ -137,6 +137,14 @@ describe('routeForNotification', () => {
       params: { id: 'inv-1' },
     });
   });
+  it('opens the overdue list for an overdue summary', () => {
+    expect(routeForNotification({ count: 8, list: 'overdue' })).toEqual({
+      tab: 'InvoicesTab',
+      screen: 'InvoiceList',
+      params: { status: 'overdue' },
+    });
+    expect(routeForNotification({ list: 'other' })).toBeNull();
+  });
   it('opens the estimate for estimate notifications', () => {
     expect(routeForNotification({ estimateId: 'est-1' })).toEqual({
       tab: 'InvoicesTab',

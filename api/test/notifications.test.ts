@@ -485,3 +485,40 @@ describe('notification centre API', () => {
     expect((await a.call('get', '/v1/notifications?limit=1000')).status).toBe(400);
   });
 });
+
+describe('overdue sweep: many at once', () => {
+  it('sends one summary instead of a push per invoice, but every invoice gets its timeline entry', async () => {
+    const a = await account();
+    const ids: string[] = [];
+    for (let i = 0; i < 8; i++) {
+      const inv = await a.invoice({ dueDate: addDays(todayInTimezone('UTC'), -3) });
+      ids.push(inv.id);
+    }
+    await ctx.overdue.sweep();
+    const notes = (await a.notifications()).items.filter(
+      (x: { type: string }) => x.type === 'invoices_overdue' || x.type === 'invoice_overdue',
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ type: 'invoices_overdue', title: 'Invoices overdue' });
+    expect(notes[0].body).toContain('8 invoices are now overdue');
+    for (const id of ids) {
+      const types = (await a.call('get', `/v1/invoices/${id}/activity`)).body.items.map(
+        (x: { type: string }) => x.type,
+      );
+      expect(types).toContain('overdue');
+    }
+    await dispatchAll();
+    expect(a.pushed().filter((m) => m.title === 'Invoices overdue')).toHaveLength(1);
+    expect(a.pushed().filter((m) => m.title === 'Invoice overdue')).toHaveLength(0);
+  });
+
+  it('keeps individual notifications for a handful', async () => {
+    const a = await account();
+    for (let i = 0; i < 3; i++) await a.invoice({ dueDate: addDays(todayInTimezone('UTC'), -2) });
+    await ctx.overdue.sweep();
+    const notes = (await a.notifications()).items.filter(
+      (x: { type: string }) => x.type === 'invoice_overdue',
+    );
+    expect(notes).toHaveLength(3);
+  });
+});

@@ -71,8 +71,7 @@ const CODE_MESSAGES: Record<string, string> = {
   INVALID_CUSTOMER: 'Choose a valid customer.',
   INVALID_PRODUCT: 'One of the selected products no longer exists. Remove it and try again.',
   INVALID_INVOICE: 'Some amounts are not valid. Check the discount, prices and quantities.',
-  VERSION_CONFLICT:
-    'This invoice was changed elsewhere. Go back and reopen it to see the latest version.',
+  VERSION_CONFLICT: 'This was changed elsewhere. Go back and reopen it to see the latest version.',
   INVOICE_LOCKED: 'This invoice can no longer be edited.',
   INVOICE_NOT_DRAFT: 'Only drafts can be deleted. Cancel the invoice instead.',
   INVALID_TRANSITION: 'That change is not allowed for this invoice.',
@@ -89,6 +88,20 @@ const CODE_MESSAGES: Record<string, string> = {
   NOT_REFUNDABLE: 'Only successful payments can be refunded.',
   AMOUNT_TOO_HIGH: 'That amount is higher than allowed.',
   SKU_EXISTS: 'Another product already uses that SKU.',
+  AMOUNT_TOO_SMALL: 'That amount is below the minimum for card payments.',
+  AMOUNT_UNSUPPORTED: 'That amount cannot be paid online. Try a different amount.',
+  INVOICE_NOT_PAYABLE: 'This invoice cannot be paid right now.',
+  ESTIMATE_LOCKED: 'This estimate can no longer be edited.',
+  ESTIMATE_NOT_DRAFT: 'Only draft estimates can be deleted.',
+  ESTIMATE_NOT_SENDABLE: 'This estimate can no longer be sent.',
+  ALREADY_CONVERTED: 'This estimate was already turned into an invoice.',
+  NOT_CONVERTIBLE: 'A declined estimate cannot be turned into an invoice.',
+  ID_TAKEN: 'This invoice was already created. Pull down to refresh the list.',
+  NUMBERING_BUSY: 'Could not assign a number just now. Please try again.',
+  ACCOUNT_NOT_FOUND: 'We could not find your account. Sign out and sign in again.',
+  NOT_FOUND: 'That no longer exists. Go back and refresh.',
+  VALIDATION_ERROR: 'Some details are not valid. Please check them and try again.',
+  BAD_REQUEST: 'Some details are not valid. Please check them and try again.',
 };
 
 /** Always a user-safe string. Raw backend messages are never shown. */

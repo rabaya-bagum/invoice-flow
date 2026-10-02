@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 import type { PaymentStatus } from '../models';
+import { statusColor, type StatusKey } from '../theme/status-colors';
 
 const LABELS: Record<PaymentStatus, string> = {
   pending: 'Pending',
@@ -7,15 +8,18 @@ const LABELS: Record<PaymentStatus, string> = {
   failed: 'Failed',
   refunded: 'Refunded',
 };
-const COLORS: Record<PaymentStatus, string> = {
-  pending: '#B45309',
-  successful: '#15803D',
-  failed: '#DC2626',
-  refunded: '#0E7490',
+const KEYS: Record<PaymentStatus, StatusKey> = {
+  pending: 'partially_paid',
+  successful: 'paid',
+  failed: 'overdue',
+  refunded: 'refunded',
 };
 
 export function PaymentBadge({ status }: { status: PaymentStatus }) {
-  const color = COLORS[status] ?? '#64748B';
+  const color = statusColor(
+    KEYS[status] ?? 'draft',
+    useColorScheme() === 'dark' ? 'dark' : 'light',
+  );
   return (
     <View style={[styles.badge, { borderColor: color, backgroundColor: `${color}1A` }]}>
       <Text

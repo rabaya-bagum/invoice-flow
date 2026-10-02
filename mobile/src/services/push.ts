@@ -84,18 +84,20 @@ export async function unregisterPush(api: Pick<ApiClient, 'removePushToken'>): P
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
-export interface NotificationTarget {
-  tab: 'InvoicesTab';
-  screen: 'Invoice' | 'Estimate';
-  params: { id: string };
-}
+export type NotificationTarget =
+  | { tab: 'InvoicesTab'; screen: 'Invoice' | 'Estimate'; params: { id: string } }
+  | { tab: 'InvoicesTab'; screen: 'InvoiceList'; params: { status: 'overdue' } };
 
 /** Where tapping a notification should go: the invoice or estimate it is about. */
 export function routeForNotification(data: unknown): NotificationTarget | null {
-  const d = data as { invoiceId?: unknown; estimateId?: unknown } | null | undefined;
+  const d = data as
+    { invoiceId?: unknown; estimateId?: unknown; list?: unknown } | null | undefined;
   if (typeof d?.invoiceId === 'string' && d.invoiceId.length > 0)
     return { tab: 'InvoicesTab', screen: 'Invoice', params: { id: d.invoiceId } };
   if (typeof d?.estimateId === 'string' && d.estimateId.length > 0)
     return { tab: 'InvoicesTab', screen: 'Estimate', params: { id: d.estimateId } };
+  // A summary ("8 invoices are now overdue") opens the overdue list.
+  if (d?.list === 'overdue')
+    return { tab: 'InvoicesTab', screen: 'InvoiceList', params: { status: 'overdue' } };
   return null;
 }

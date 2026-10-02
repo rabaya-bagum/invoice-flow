@@ -118,3 +118,15 @@ describe('image sniffing', () => {
     expect(sniffImage(Buffer.from('%PDF-1.4'))).toBeNull();
   });
 });
+
+describe('database pool', () => {
+  it('bounds how long a query, a transaction and a connection wait can last', async () => {
+    const { createPool } = await import('../src/db');
+    const pool = createPool('postgresql://u:p@localhost:5432/x');
+    const o = pool.options as unknown as Record<string, unknown>;
+    expect(o.statement_timeout).toBe(20_000);
+    expect(o.idle_in_transaction_session_timeout).toBe(30_000);
+    expect(o.connectionTimeoutMillis).toBe(5_000);
+    await pool.end();
+  });
+});
