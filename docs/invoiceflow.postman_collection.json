@@ -925,7 +925,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"issueDate\": \"2026-10-01\",\n  \"expiryDate\": \"2026-10-31\",\n  \"currency\": \"USD\",\n  \"items\": [\n    {\n      \"description\": \"Consulting\",\n      \"quantityMilli\": 2000,\n      \"unitPriceMinor\": 15000,\n      \"taxes\": [\n        {\n          \"name\": \"GST\",\n          \"rateBps\": 500\n        }\n      ]\n    }\n  ]\n}"
+              "raw": "{}"
             },
             "description": "Create an estimate (numbered EST-0001..; totals computed by the server)"
           }

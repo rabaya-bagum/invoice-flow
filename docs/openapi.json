@@ -541,6 +541,23 @@
           }
         }
       },
+      "EstimateCreate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EstimateInput"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Optional client-generated id (offline drafts). The same id twice answers 409 ID_TAKEN."
+              }
+            }
+          }
+        ]
+      },
       "EstimateInput": {
         "type": "object",
         "required": ["customerId", "issueDate", "expiryDate", "currency", "items"],
@@ -2836,7 +2853,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EstimateInput"
+                "$ref": "#/components/schemas/EstimateCreate"
               }
             }
           }

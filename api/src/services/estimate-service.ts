@@ -151,10 +151,14 @@ export function createEstimateService(db: Database, invoices: InvoiceService) {
       return toDto(e);
     },
 
-    async create(actor: Actor, input: EstimateWriteInput) {
+    async create(actor: Actor, input: EstimateWriteInput, clientId?: string) {
       const totals = computeTotals(asInvoiceInput(input));
       const id = await db.transaction(async (tx) => {
         const r = repo(tx);
+        // A client-chosen id is never reused, whoever owns it (same answer for "mine" and "theirs").
+        if (clientId && (await r.idTaken(clientId))) {
+          throw new AppError(409, 'ID_TAKEN', 'This estimate was already created');
+        }
         await validateReferences(tx, actor.businessId, input);
         let newId: string | null = null;
         let number = '';
@@ -162,10 +166,12 @@ export function createEstimateService(db: Database, invoices: InvoiceService) {
           number = input.number ?? (await r.allocateNumber(actor.businessId));
           await tx.query('SAVEPOINT estimate_number');
           try {
-            newId = await r.insert(actor.businessId, toWrite(input, totals, number));
+            newId = await r.insert(actor.businessId, toWrite(input, totals, number), clientId);
             await tx.query('RELEASE SAVEPOINT estimate_number');
           } catch (e) {
             await tx.query('ROLLBACK TO SAVEPOINT estimate_number');
+            if ((e as { constraint?: string })?.constraint === 'estimates_pkey')
+              throw new AppError(409, 'ID_TAKEN', 'This estimate was already created');
             if (!uniqueNumberViolation(e)) throw e;
             if (input.number)
               throw new AppError(409, 'NUMBER_EXISTS', `Estimate number ${number} is already used`);

@@ -182,7 +182,8 @@ Phase 10 (launch readiness) adds EAS build profiles, an OpenAPI spec and Postman
 launch checklist, store listing draft and privacy policy template under `docs/`.
 Phase 11 adds estimates (create, email, convert to a draft invoice). Phase 12 adds a customer-facing
 estimate page where the customer reads, accepts or declines, with owner notifications. Not built yet
-(v1.1): estimates offline.
+(v1.1): nothing from the original plan; see the launch checklist.
+Phase 18 extends offline drafts to estimates (same queue, conflict flow and encryption).
 Phase 16 encrypts the on-device offline data (per-user key in the secure store, erased on sign-out).
 Phase 15 is a polish pass: tested colour contrast, an accessibility structure audit, error-message
 coverage, a 20,000-invoice performance smoke test, a summary notification for mass-overdue, and database

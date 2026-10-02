@@ -1,5 +1,5 @@
 import type { InvoiceWriteInput } from '@invoiceflow/shared';
-import type { DraftOp, DraftSummary, Problem } from './types';
+import type { DraftKind, DraftOp, DraftSummary, Problem } from './types';
 
 const without = (ops: DraftOp[], id: string) => ops.filter((o) => o.invoiceId !== id);
 
@@ -13,6 +13,7 @@ export function queueSave(
   ops: DraftOp[],
   input: {
     invoiceId: string;
+    kind?: DraftKind;
     isNew: boolean;
     payload: InvoiceWriteInput;
     baseVersion: number | null;
@@ -25,6 +26,7 @@ export function queueSave(
   const base = prev && prev.payload !== null ? prev : undefined;
   const op: DraftOp = {
     invoiceId: input.invoiceId,
+    kind: input.kind ?? 'invoice',
     isNew: base ? base.isNew : input.isNew,
     payload: input.payload,
     baseVersion: base ? base.baseVersion : input.baseVersion,
@@ -45,12 +47,13 @@ export function queueSave(
  */
 export function queueDelete(
   ops: DraftOp[],
-  input: { invoiceId: string; isNew: boolean; summary: DraftSummary },
+  input: { invoiceId: string; kind?: DraftKind; isNew: boolean; summary: DraftSummary },
   now: string,
 ): DraftOp[] {
   const prev = findOp(ops, input.invoiceId);
   const op: DraftOp = {
     invoiceId: input.invoiceId,
+    kind: input.kind ?? prev?.kind ?? 'invoice',
     isNew: prev ? prev.isNew : input.isNew,
     payload: null,
     baseVersion: prev ? prev.baseVersion : null,

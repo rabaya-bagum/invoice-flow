@@ -1,10 +1,11 @@
 import type { InvoiceWriteInput } from '@invoiceflow/shared';
 import { createContext, useContext } from 'react';
 import type { ReferenceSnapshot } from './reference';
-import type { DraftOp, DraftSummary } from './types';
+import type { DraftKind, DraftOp, DraftSummary } from './types';
 
 export interface SaveDraftInput {
   invoiceId: string;
+  kind?: DraftKind;
   isNew: boolean;
   payload: InvoiceWriteInput;
   baseVersion: number | null;
@@ -22,7 +23,12 @@ export interface OfflineValue {
   lastStop: 'offline' | 'busy' | 'auth' | null;
   getOp(invoiceId: string): DraftOp | undefined;
   saveDraft(input: SaveDraftInput): Promise<void>;
-  deleteDraft(input: { invoiceId: string; isNew: boolean; summary: DraftSummary }): Promise<void>;
+  deleteDraft(input: {
+    invoiceId: string;
+    kind?: DraftKind;
+    isNew: boolean;
+    summary: DraftSummary;
+  }): Promise<void>;
   syncNow(): Promise<void>;
   /** Re-base my edit on the server's current version and upload it. */
   keepMine(invoiceId: string): Promise<string | null>;

@@ -111,7 +111,9 @@ export interface EstimateRepository {
     convertedInvoiceId: string | null;
   } | null>;
   allocateNumber(businessId: string): Promise<string>;
-  insert(businessId: string, w: EstimateWrite): Promise<string>;
+  /** `id` is optional: offline drafts bring their own (client-generated) id. */
+  insert(businessId: string, w: EstimateWrite, id?: string): Promise<string>;
+  idTaken(id: string): Promise<boolean>;
   replace(businessId: string, id: string, w: EstimateWrite): Promise<void>;
   setStatus(businessId: string, id: string, status: EstimateStatus): Promise<void>;
   markConverted(businessId: string, id: string, invoiceId: string): Promise<void>;
@@ -278,13 +280,19 @@ export function createEstimateRepository(db: Queryable): EstimateRepository {
       return (r.rows[0] as { n: string }).n;
     },
 
-    async insert(businessId, w) {
+    async idTaken(id) {
+      const r = await db.query('SELECT 1 FROM estimates WHERE id = $1', [id]);
+      return (r.rowCount ?? 0) > 0;
+    },
+
+    async insert(businessId, w, clientId) {
       const r = await db.query<{ id: string }>(
         `INSERT INTO estimates (business_id, customer_id, number, issue_date, expiry_date, currency,
            tax_inclusive, discount_type, discount_value, fees_minor, subtotal_minor,
-           discount_total_minor, tax_total_minor, total_minor, notes, terms)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
-        [businessId, ...cols(w)],
+           discount_total_minor, tax_total_minor, total_minor, notes, terms, id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+                 coalesce($17::uuid, gen_random_uuid())) RETURNING id`,
+        [businessId, ...cols(w), clientId ?? null],
       );
       const id = (r.rows[0] as { id: string }).id;
       await insertItems(businessId, id, w.items);

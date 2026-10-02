@@ -13,7 +13,7 @@ import { TextField } from '../components/TextField';
 import { useBusiness, useInvoices } from '../hooks/queries';
 import { useDebounced } from '../hooks/useDebounced';
 import type { InvoiceSummary } from '../models';
-import type { DraftOp } from '../offline/types';
+import { kindOf, type DraftOp } from '../offline/types';
 import type { InvoicesStackParams } from '../navigation/types';
 import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
@@ -89,7 +89,7 @@ export function InvoiceListScreen({
       return [];
     const needle = search.trim().toLowerCase();
     return off.ops
-      .filter((o) => o.isNew && o.payload !== null)
+      .filter((o) => kindOf(o) === 'invoice' && o.isNew && o.payload !== null)
       .filter(
         (o) =>
           !needle ||

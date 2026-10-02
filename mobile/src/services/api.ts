@@ -119,7 +119,7 @@ export function createApiClient(opts: ApiClientOptions) {
     listEstimates: (p: InvoiceListParams) =>
       request<Page<EstimateSummary>>(`/v1/estimates${qs({ ...p })}`),
     getEstimate: (id: string) => request<Estimate>(`/v1/estimates/${id}`),
-    createEstimate: (input: EstimateWriteInput) =>
+    createEstimate: (input: EstimateWriteInput & { id?: string }) =>
       request<Estimate>('/v1/estimates', body('POST', input)),
     updateEstimate: (id: string, input: EstimateWriteInput) =>
       request<Estimate>(`/v1/estimates/${id}`, body('PUT', input)),

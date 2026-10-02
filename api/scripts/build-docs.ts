@@ -250,7 +250,7 @@ export const OPS: Op[] = [
     path: '/v1/estimates',
     tag: 'Estimates',
     summary: 'Create an estimate (numbered EST-0001..; totals computed by the server)',
-    body: 'EstimateInput',
+    body: 'EstimateCreate',
     ok: 'Estimate',
     status: 201,
   },
@@ -705,6 +705,21 @@ export const SCHEMAS: Record<string, object> = {
     },
   },
   InvoicePage: page('Invoice'),
+  EstimateCreate: {
+    allOf: [
+      { $ref: '#/components/schemas/EstimateInput' },
+      {
+        type: 'object',
+        properties: {
+          id: {
+            ...uuid,
+            description:
+              'Optional client-generated id (offline drafts). The same id twice answers 409 ID_TAKEN.',
+          },
+        },
+      },
+    ],
+  },
   EstimateInput: {
     type: 'object',
     required: ['customerId', 'issueDate', 'expiryDate', 'currency', 'items'],

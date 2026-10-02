@@ -121,3 +121,39 @@ describe('client-generated invoice ids (offline drafts)', () => {
     expect((await a.call('post', `/v1/estimates/${est.id}/convert`)).status).toBe(201);
   });
 });
+
+describe('client-generated estimate ids (offline drafts)', () => {
+  const est = (a: Awaited<ReturnType<typeof account>>, over: object = {}) => ({
+    customerId: a.customerId,
+    issueDate: '2026-10-01',
+    expiryDate: '2026-11-01',
+    currency: 'USD',
+    items: [{ description: 'Work', quantityMilli: 1000, unitPriceMinor: 10_000, taxes: [] }],
+    ...over,
+  });
+
+  it('creates under the chosen id, never twice, and answers alike for another business', async () => {
+    const a = await account();
+    const b = await account();
+    const id = randomUUID();
+    const ok = await a.call('post', '/v1/estimates').send(est(a, { id }));
+    expect(ok.status).toBe(201);
+    expect(ok.body).toMatchObject({ id, number: 'EST-0001' });
+    const again = await a.call('post', '/v1/estimates').send(est(a, { id }));
+    expect([again.status, again.body.error.code]).toEqual([409, 'ID_TAKEN']);
+    const other = await b.call('post', '/v1/estimates').send(est(b, { id }));
+    expect([other.status, other.body.error.code]).toEqual([409, 'ID_TAKEN']);
+    expect((await b.call('get', `/v1/estimates/${id}`)).status).toBe(404);
+    expect((await a.call('get', '/v1/estimates')).body.total).toBe(1);
+  });
+
+  it('creates exactly one when the same id arrives at once, and rejects non-UUIDs', async () => {
+    const a = await account();
+    const id = randomUUID();
+    const out = await Promise.all(
+      [1, 2, 3].map(() => a.call('post', '/v1/estimates').send(est(a, { id }))),
+    );
+    expect(out.map((r) => r.status).sort()).toEqual([201, 409, 409]);
+    expect((await a.call('post', '/v1/estimates').send(est(a, { id: 'abc' }))).status).toBe(400);
+  });
+});

@@ -50,6 +50,11 @@ export const estimateInputSchema = invoiceInputSchema
   .extend({ expiryDate: z.string().refine(isValidDate, 'Enter a valid date (YYYY-MM-DD)') });
 export type EstimateWriteInput = z.infer<typeof estimateInputSchema>;
 
+/** Like invoices, creating may carry a client-generated id so an offline draft can be retried safely. */
+export const estimateCreateSchema = estimateInputSchema.extend({
+  id: z.string().uuid().optional(),
+});
+
 export const estimateTransitionSchema = z.object({ to: z.enum(MANUAL_ESTIMATE_TRANSITIONS) });
 
 export const estimateListQuerySchema = listQuerySchema.extend({

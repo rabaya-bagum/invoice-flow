@@ -446,7 +446,7 @@ export function useSaveEstimate(id?: string) {
   const { api } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: EstimateWriteInput) =>
+    mutationFn: (input: EstimateWriteInput & { id?: string }) =>
       id ? api.updateEstimate(id, input) : api.createEstimate(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.estimates }),
   });

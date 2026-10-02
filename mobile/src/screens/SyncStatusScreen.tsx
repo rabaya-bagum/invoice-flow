@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Button } from '../components/Button';
 import { Screen } from '../components/Screen';
 import { useOffline } from '../offline/context';
-import type { DraftOp } from '../offline/types';
+import { kindOf, type DraftOp } from '../offline/types';
 import type { InvoicesStackParams } from '../navigation/types';
 import { radius, spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
@@ -41,7 +41,11 @@ export function SyncStatusScreen({
         {off.ops.map((op) => (
           <Pressable
             key={op.invoiceId}
-            onPress={() => navigation.navigate('Invoice', { id: op.invoiceId })}
+            onPress={() =>
+              kindOf(op) === 'estimate'
+                ? navigation.navigate('Estimate', { id: op.invoiceId })
+                : navigation.navigate('Invoice', { id: op.invoiceId })
+            }
             accessibilityRole="button"
             accessibilityLabel={`${op.summary.customerName}, ${op.payload === null ? 'deleting' : LABEL[op.state]}`}
             style={{
@@ -56,8 +60,8 @@ export function SyncStatusScreen({
             <Text style={{ color: c.text, fontWeight: '700' }}>{op.summary.customerName}</Text>
             <Text style={{ color: c.muted }}>
               {op.payload === null
-                ? 'Delete draft'
-                : `${op.isNew ? 'New draft' : 'Edited draft'} · ${money(op.summary.totalMinor, op.summary.currency)}`}
+                ? `Delete ${kindOf(op)} draft`
+                : `${op.isNew ? 'New' : 'Edited'} ${kindOf(op)} draft · ${money(op.summary.totalMinor, op.summary.currency)}`}
             </Text>
             <Text style={{ color: op.state === 'pending' ? c.muted : c.danger, fontSize: 13 }}>
               {op.problem?.message ?? LABEL[op.state]}

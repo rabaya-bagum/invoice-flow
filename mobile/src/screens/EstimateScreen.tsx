@@ -18,7 +18,10 @@ import {
   useTaxRates,
   useTransitionEstimate,
 } from '../hooks/queries';
+import { QueuedDraft } from '../components/QueuedDraft';
 import { useEstimateActions } from '../hooks/useEstimateActions';
+import { useOffline } from '../offline/context';
+import { classifyError } from '../utils/errors';
 import { useSubmit } from '../hooks/useSubmit';
 import type { BusinessProfile, Estimate } from '../models';
 import type { InvoicesStackParams } from '../navigation/types';
@@ -39,18 +42,28 @@ export function EstimateScreen({
   const [tab, setTab] = useState<Tab>('edit');
   const business = useBusiness();
   const rates = useTaxRates();
-  const estimate = useEstimate(id);
+  const off = useOffline();
+  const op = id ? off.getOp(id) : undefined;
+  // With a copy saved on the device we do not wait for (or depend on) the server.
+  const estimate = useEstimate(op || !off.loaded ? undefined : id);
   const transition = useTransitionEstimate();
   const convert = useConvertEstimate();
   const remove = useDeleteEstimate();
   const act = useSubmit();
 
-  if (business.isPending || rates.isPending || (id && estimate.isPending)) return <LoadingState />;
+  if (!off.loaded || business.isPending || rates.isPending || (id && !op && estimate.isPending))
+    return <LoadingState />;
   if (business.isError)
     return <ErrorState error={business.error} onRetry={() => void business.refetch()} />;
   if (rates.isError) return <ErrorState error={rates.error} onRetry={() => void rates.refetch()} />;
-  if (id && estimate.isError)
+  if (id && !op && estimate.isError)
     return <ErrorState error={estimate.error} onRetry={() => void estimate.refetch()} />;
+
+  if (op && id) {
+    return (
+      <QueuedDraft op={op} id={id} business={business.data} onGone={() => navigation.popToTop()} />
+    );
+  }
 
   const est = estimate.data;
   const tabs: Array<{ value: Tab; label: string }> = id
@@ -118,9 +131,16 @@ export function EstimateScreen({
                   )
             }
             invoiceId={id}
+            offline={
+              est
+                ? est.status === 'draft'
+                  ? { isNew: false, baseVersion: est.version }
+                  : undefined
+                : { isNew: true, baseVersion: null }
+            }
             onSaved={(saved) => {
-              if (id) setTab('preview');
-              else navigation.replace('Estimate', { id: saved.id });
+              if (saved.queued || !id) navigation.replace('Estimate', { id: saved.id });
+              else setTab('preview');
             }}
           />
         ) : null)}
@@ -199,7 +219,23 @@ export function EstimateScreen({
               variant="danger"
               onPress={() =>
                 confirm('Delete this draft?', 'This cannot be undone.', 'Delete', async () => {
-                  await remove.mutateAsync(est.id);
+                  try {
+                    await remove.mutateAsync(est.id);
+                  } catch (e) {
+                    // No connection: remember the delete and send it when back online.
+                    if (!off.available || classifyError(e) !== 'network') throw e;
+                    await off.deleteDraft({
+                      invoiceId: est.id,
+                      kind: 'estimate',
+                      isNew: false,
+                      summary: {
+                        customerName: est.customerName,
+                        currency: est.currency,
+                        totalMinor: est.totalMinor,
+                        number: est.number,
+                      },
+                    });
+                  }
                   navigation.popToTop();
                 })
               }

@@ -23,12 +23,21 @@ export interface Problem {
   message: string;
 }
 
-/** One queued change to one invoice draft. There is at most one per invoice (edits coalesce). */
+export type DraftKind = 'invoice' | 'estimate';
+
+/** Files written before estimates were queued have no kind: they are invoices. */
+export const kindOf = (op: { kind?: DraftKind }): DraftKind => op.kind ?? 'invoice';
+
+/** One queued change to one invoice or estimate draft. There is at most one per invoice (edits coalesce). */
 export interface DraftOp {
   invoiceId: string;
+  kind?: DraftKind;
   /** Not known to exist on the server yet (created offline). */
   isNew: boolean;
-  /** The full content to save; null means "delete this draft". */
+  /**
+   * The full content to save; null means "delete this draft". Always invoice-shaped (it is the edit
+   * form's shape): for an estimate `dueDate` holds the expiry date and is converted when uploading.
+   */
   payload: InvoiceWriteInput | null;
   /** The server version this edit started from (the first edit's base wins when edits coalesce). */
   baseVersion: number | null;

@@ -111,40 +111,46 @@ export function InvoiceFormView({
     if (!payload) return;
     setSaving(true);
     try {
-      if (estimate) {
-        const { dueDate, ...rest } = payload;
-        onSaved(await saveEstimate.mutateAsync({ ...rest, expiryDate: dueDate }));
+      const id = newId.current;
+      const content = { ...payload, version: undefined };
+      const queueIt = async () => {
+        await off.saveDraft({
+          invoiceId: id,
+          kind,
+          isNew: offlineMode?.isNew ?? !invoiceId,
+          payload: content,
+          baseVersion: offlineMode?.baseVersion ?? payload.version ?? null,
+          summary: {
+            customerName: form.customerName,
+            currency: cur,
+            totalMinor: preview && 'totals' in preview ? preview.totals.total : 0,
+            number: payload.number,
+          },
+        });
+        onSaved({ id, queued: true });
+      };
+      // The server call: invoices and estimates differ only in the date field's name and endpoint.
+      const send = async () => {
+        if (estimate) {
+          const { dueDate, ...rest } = payload;
+          return saveEstimate.mutateAsync(
+            invoiceId ? { ...rest, expiryDate: dueDate } : { ...rest, expiryDate: dueDate, id },
+          );
+        }
+        return saveInvoice.mutateAsync(invoiceId ? payload : { ...payload, id });
+      };
+      if (off.available && offlineMode?.local) {
+        // Already queued: keep the queue as the source of truth and try to upload right away.
+        await queueIt();
+        void off.syncNow();
       } else {
-        const id = newId.current;
-        const content = { ...payload, version: undefined };
-        const queueIt = async () => {
-          await off.saveDraft({
-            invoiceId: id,
-            isNew: offlineMode?.isNew ?? !invoiceId,
-            payload: content,
-            baseVersion: offlineMode?.baseVersion ?? payload.version ?? null,
-            summary: {
-              customerName: form.customerName,
-              currency: cur,
-              totalMinor: preview && 'totals' in preview ? preview.totals.total : 0,
-              number: payload.number,
-            },
-          });
-          onSaved({ id, queued: true });
-        };
-        if (off.available && offlineMode?.local) {
-          // Already queued: keep the queue as the source of truth and try to upload right away.
-          await queueIt();
-          void off.syncNow();
-        } else {
-          try {
-            onSaved(await saveInvoice.mutateAsync(invoiceId ? payload : { ...payload, id }));
-          } catch (err) {
-            // No connection (or a timeout that may have reached the server): keep the draft safe on
-            // the device. The id makes the later upload idempotent.
-            if (off.available && offlineMode && classifyError(err) === 'network') await queueIt();
-            else throw err;
-          }
+        try {
+          onSaved(await send());
+        } catch (err) {
+          // No connection (or a timeout that may have reached the server): keep the draft safe on
+          // the device. The id makes the later upload idempotent.
+          if (off.available && offlineMode && classifyError(err) === 'network') await queueIt();
+          else throw err;
         }
       }
     } catch (err) {

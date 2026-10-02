@@ -282,9 +282,9 @@
   setting, multiple saved themes.
 
 ## Offline drafts and sync (Phase 14)
-**Scope.** You can create invoice drafts, edit existing *drafts*, and delete drafts with no connection.
-Everything else (sending, payments, customers, products, estimates, viewing other invoices) still needs
-the network. Estimates are not queued yet.
+**Scope.** You can create invoice and estimate drafts, edit existing *drafts*, and delete drafts with no
+connection (estimates since Phase 18). Everything else (sending, payments, customers, products, converting
+an estimate, viewing other documents) still needs the network.
 
 **How it works.**
 - The app tries the server first. Only a *connection* failure (no network, timeout) queues the change;
@@ -355,6 +355,23 @@ the network. Estimates are not queued yet.
 - Not done: image caching/downsizing review, list item memoisation (rows take inline callbacks, so memo
   would not help), bundle-size analysis, startup-time profiling on a low-end Android phone. Those need a
   device.
+
+## Offline estimates (Phase 18)
+- Estimates use the **same queue, conflict flow and encryption** as invoices; each queued change carries a
+  `kind` ('invoice' | 'estimate'; files from before Phase 18 have none and are invoices). The queue stores
+  both in the form's invoice shape: for an estimate the `dueDate` field holds the **expiry date** and is
+  renamed to `expiryDate` when uploading. Server copies are compared in that same shape.
+- `POST /v1/estimates` accepts a client-generated `id` exactly like invoices (`409 ID_TAKEN`, never
+  reused, same answer for another business's id; concurrent duplicates resolve to one 201).
+- Only **draft** estimates are edited/queued offline. A sent, viewed, accepted or converted estimate needs
+  the network, because a customer may have answered it. If it changes underneath a queued edit
+  (`ESTIMATE_LOCKED`, delete refused with `ESTIMATE_NOT_DRAFT`) the owner gets the same "save as new draft or
+  discard" choice, with estimate wording.
+- Lists: queued estimates appear (marked "Not synced") only in the estimate list, queued invoices only in the
+  invoice list; the sync screen labels each and opens the right screen. Offline estimates leave the number
+  blank so the server assigns EST-000N at upload.
+- Not covered: converting an estimate to an invoice offline (it is one server transaction), and offline
+  customer-facing actions.
 
 ## Encrypted on-device data (Phase 16)
 - The offline queue and the saved customer/product/tax lists are encrypted with **XChaCha20-Poly1305**

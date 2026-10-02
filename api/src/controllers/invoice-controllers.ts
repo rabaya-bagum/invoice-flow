@@ -1,4 +1,5 @@
 import {
+  estimateCreateSchema,
   estimateInputSchema,
   invoiceCreateSchema,
   estimateListQuerySchema,
@@ -90,7 +91,8 @@ export function createEstimateController(svc: EstimateService) {
     get: async (req: Request, res: Response) =>
       void res.json(await svc.get(businessId(req), idParam(req))),
     async create(req: Request, res: Response) {
-      res.status(201).json(await svc.create(actor(req), estimateInputSchema.parse(req.body)));
+      const { id, ...input } = estimateCreateSchema.parse(req.body);
+      res.status(201).json(await svc.create(actor(req), input, id));
     },
     update: async (req: Request, res: Response) =>
       void res.json(

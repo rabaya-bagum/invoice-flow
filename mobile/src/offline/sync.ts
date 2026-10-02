@@ -1,9 +1,10 @@
 import type { InvoiceWriteInput } from '@invoiceflow/shared';
-import type { Invoice } from '../models';
+import type { Estimate, Invoice } from '../models';
+import { estimateAsInvoice } from '../utils/estimate';
 import { friendlyMessage } from '../utils/errors';
 import { serverHasContent } from './compare';
 import { bumpAttempts, removeOp, setState } from './outbox';
-import type { DraftOp, OpState, Problem } from './types';
+import { kindOf, type DraftKind, type DraftOp, type OpState, type Problem } from './types';
 
 /** The slice of the API client the queue needs (so tests can fake it). */
 export interface SyncApi {
@@ -11,6 +12,61 @@ export interface SyncApi {
   updateInvoice(id: string, input: InvoiceWriteInput): Promise<Invoice>;
   deleteInvoice(id: string): Promise<void>;
   getInvoice(id: string): Promise<Invoice>;
+  createEstimate(
+    input: Omit<InvoiceWriteInput, 'dueDate'> & { expiryDate: string; id?: string },
+  ): Promise<Estimate>;
+  updateEstimate(
+    id: string,
+    input: Omit<InvoiceWriteInput, 'dueDate'> & { expiryDate: string },
+  ): Promise<Estimate>;
+  deleteEstimate(id: string): Promise<void>;
+  getEstimate(id: string): Promise<Estimate>;
+}
+
+/**
+ * One uniform way to talk to the server about an invoice or an estimate draft. The queue stores both
+ * in the form's invoice shape; for an estimate `dueDate` is the expiry date and is renamed on the way out.
+ */
+interface Adapter {
+  create(id: string, p: InvoiceWriteInput): Promise<unknown>;
+  update(id: string, p: InvoiceWriteInput): Promise<unknown>;
+  remove(id: string): Promise<void>;
+  /** The server copy in invoice shape (so one comparison works for both). */
+  get(id: string): Promise<Invoice>;
+  lockedCodes: string[];
+  notDraftCode: string;
+  noun: 'invoice' | 'estimate';
+}
+
+const toEstimate = (p: InvoiceWriteInput) => {
+  const { dueDate, ...rest } = p;
+  return { ...rest, expiryDate: dueDate };
+};
+
+function adapterFor(api: SyncApi, kind: DraftKind): Adapter {
+  if (kind === 'estimate') {
+    return {
+      create: (id, p) => api.createEstimate({ ...toEstimate(p), id }),
+      update: (id, p) => api.updateEstimate(id, toEstimate(p)),
+      remove: (id) => api.deleteEstimate(id),
+      get: async (id) => {
+        const e = await api.getEstimate(id);
+        return { ...estimateAsInvoice(e), status: e.status as never, editable: e.editable };
+      },
+      lockedCodes: ['ESTIMATE_LOCKED'],
+      notDraftCode: 'ESTIMATE_NOT_DRAFT',
+      noun: 'estimate',
+    };
+  }
+  return {
+    create: (id, p) => api.createInvoice({ ...p, id }),
+    update: (id, p) => api.updateInvoice(id, p),
+    remove: (id) => api.deleteInvoice(id),
+    get: (id) => api.getInvoice(id),
+    lockedCodes: ['INVOICE_LOCKED'],
+    notDraftCode: 'INVOICE_NOT_DRAFT',
+    noun: 'invoice',
+  };
 }
 
 type Outcome =
@@ -47,7 +103,7 @@ const rejected = (e: unknown): Outcome => ({
 function reason(e: unknown): string {
   switch (info(e).code) {
     case 'NUMBER_EXISTS':
-      return 'That invoice number is already used. Change the number or let it be assigned automatically.';
+      return 'That number is already used. Change the number or let it be assigned automatically.';
     case 'INVALID_CUSTOMER':
       return 'The customer was deleted or is no longer available. Choose another customer.';
     case 'INVALID_PRODUCT':
@@ -57,38 +113,41 @@ function reason(e: unknown): string {
   }
 }
 
-const locked: Outcome = {
+const lockedFor = (noun: Adapter['noun']): Outcome => ({
   type: 'problem',
   state: 'conflict',
   problem: {
     code: 'locked',
-    message: 'This invoice was sent or paid on another device, so it cannot be changed any more.',
+    message:
+      noun === 'estimate'
+        ? 'This estimate was sent, answered or converted on another device, so it cannot be changed any more.'
+        : 'This invoice was sent or paid on another device, so it cannot be changed any more.',
   },
-};
+});
 
-async function create(api: SyncApi, op: DraftOp, payload: InvoiceWriteInput): Promise<Outcome> {
+async function create(a: Adapter, op: DraftOp, payload: InvoiceWriteInput): Promise<Outcome> {
   try {
-    await api.createInvoice({ ...payload, id: op.invoiceId });
+    await a.create(op.invoiceId, payload);
     return { type: 'done' };
   } catch (e) {
     if (info(e).code !== 'ID_TAKEN') return transient(e) ?? rejected(e);
   }
   // The id exists: an earlier attempt reached the server and only the reply was lost. Bring the
-  // existing draft up to date instead of creating a second invoice.
+  // existing draft up to date instead of creating a second one.
   let server: Invoice;
   try {
-    server = await api.getInvoice(op.invoiceId);
+    server = await a.get(op.invoiceId);
   } catch (e) {
     return transient(e) ?? rejected(e);
   }
   if (serverHasContent(server, payload)) return { type: 'done' };
-  if (server.status !== 'draft' || !server.editable) return locked;
-  return update(api, { ...op, isNew: false, baseVersion: server.version }, payload);
+  if (server.status !== 'draft' || !server.editable) return lockedFor(a.noun);
+  return update(a, { ...op, isNew: false, baseVersion: server.version }, payload);
 }
 
-async function update(api: SyncApi, op: DraftOp, payload: InvoiceWriteInput): Promise<Outcome> {
+async function update(a: Adapter, op: DraftOp, payload: InvoiceWriteInput): Promise<Outcome> {
   try {
-    await api.updateInvoice(op.invoiceId, {
+    await a.update(op.invoiceId, {
       ...payload,
       ...(op.baseVersion !== null ? { version: op.baseVersion } : {}),
     });
@@ -98,7 +157,7 @@ async function update(api: SyncApi, op: DraftOp, payload: InvoiceWriteInput): Pr
     if (code === 'VERSION_CONFLICT') {
       try {
         // Same content already on the server (the save worked, the reply was lost): not a conflict.
-        if (serverHasContent(await api.getInvoice(op.invoiceId), payload)) return { type: 'done' };
+        if (serverHasContent(await a.get(op.invoiceId), payload)) return { type: 'done' };
       } catch (inner) {
         return transient(inner) ?? { type: 'retry', why: 'offline' };
       }
@@ -111,7 +170,7 @@ async function update(api: SyncApi, op: DraftOp, payload: InvoiceWriteInput): Pr
         },
       };
     }
-    if (code === 'INVOICE_LOCKED') return locked;
+    if (code && a.lockedCodes.includes(code)) return lockedFor(a.noun);
     if (status === 404 || code === 'NOT_FOUND') {
       return {
         type: 'problem',
@@ -123,20 +182,20 @@ async function update(api: SyncApi, op: DraftOp, payload: InvoiceWriteInput): Pr
   }
 }
 
-async function remove(api: SyncApi, op: DraftOp): Promise<Outcome> {
+async function remove(a: Adapter, op: DraftOp): Promise<Outcome> {
   try {
-    await api.deleteInvoice(op.invoiceId);
+    await a.remove(op.invoiceId);
     return { type: 'done' };
   } catch (e) {
     const { code, status } = info(e);
     if (status === 404 || code === 'NOT_FOUND') return { type: 'done' }; // already gone
-    if (code === 'INVOICE_NOT_DRAFT') {
+    if (code === a.notDraftCode) {
       return {
         type: 'problem',
         state: 'conflict',
         problem: {
           code: 'locked',
-          message: 'This invoice was sent on another device, so it can no longer be deleted.',
+          message: `This ${a.noun} was sent on another device, so it can no longer be deleted.`,
         },
       };
     }
@@ -145,8 +204,9 @@ async function remove(api: SyncApi, op: DraftOp): Promise<Outcome> {
 }
 
 export async function runOp(api: SyncApi, op: DraftOp): Promise<Outcome> {
-  if (op.payload === null) return remove(api, op);
-  return op.isNew ? create(api, op, op.payload) : update(api, op, op.payload);
+  const a = adapterFor(api, kindOf(op));
+  if (op.payload === null) return remove(a, op);
+  return op.isNew ? create(a, op, op.payload) : update(a, op, op.payload);
 }
 
 export interface SyncResult {
@@ -188,9 +248,10 @@ export async function rebase(
   api: SyncApi,
   op: DraftOp,
 ): Promise<{ ok: true; version: number } | { ok: false; problem: Problem }> {
-  const server = await api.getInvoice(op.invoiceId);
+  const a = adapterFor(api, kindOf(op));
+  const server = await a.get(op.invoiceId);
   if (server.status !== 'draft' || !server.editable) {
-    return { ok: false, problem: (locked as { problem: Problem }).problem };
+    return { ok: false, problem: (lockedFor(a.noun) as { problem: Problem }).problem };
   }
   return { ok: true, version: server.version };
 }

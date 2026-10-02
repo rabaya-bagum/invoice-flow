@@ -30,7 +30,7 @@ import {
 import { newInvoiceId } from './ids';
 import { OfflineContext, type OfflineValue, type SaveDraftInput } from './context';
 import { processOutbox, rebase, type SyncApi } from './sync';
-import type { DraftOp, DraftSummary } from './types';
+import type { DraftKind, DraftOp, DraftSummary } from './types';
 
 export { useOffline } from './context';
 
@@ -169,7 +169,10 @@ export function OfflineProvider({
         if (editedDuringRun && !result.stopped) again.current = true;
         setLastStop(result.stopped);
         if (result.synced.length) {
-          await qc.invalidateQueries({ queryKey: keys.invoices });
+          await Promise.all([
+            qc.invalidateQueries({ queryKey: keys.invoices }),
+            qc.invalidateQueries({ queryKey: keys.estimates }),
+          ]);
         }
         if (result.stopped) break;
       } while (again.current);
@@ -237,7 +240,12 @@ export function OfflineProvider({
   );
 
   const deleteDraft = useCallback(
-    async (input: { invoiceId: string; isNew: boolean; summary: DraftSummary }) => {
+    async (input: {
+      invoiceId: string;
+      kind?: DraftKind;
+      isNew: boolean;
+      summary: DraftSummary;
+    }) => {
       await commit(queueDelete(opsRef.current, input, new Date().toISOString()));
     },
     [commit],
@@ -246,7 +254,10 @@ export function OfflineProvider({
   const discard = useCallback(
     async (id: string) => {
       await commit(removeOp(opsRef.current, id));
-      await qc.invalidateQueries({ queryKey: keys.invoices });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: keys.invoices }),
+        qc.invalidateQueries({ queryKey: keys.estimates }),
+      ]);
     },
     [commit, qc],
   );
