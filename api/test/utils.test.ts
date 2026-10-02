@@ -140,6 +140,9 @@ describe('request log redaction', () => {
     ['/public/invoices/abc.def/view', '/public/invoices/[redacted]/view'],
     ['/estimate/abc.def', '/estimate/[redacted]'],
     ['/public/estimates/abc.def/pdf', '/public/estimates/[redacted]/pdf'],
+    // Express matches routes case-insensitively, so these reach the token handlers too.
+    ['/PAY/abc.def', '/PAY/[redacted]'],
+    ['/Public/Invoices/abc.def/pdf', '/Public/Invoices/[redacted]/pdf'],
   ])('masks the share token in %s', (url, expected) => {
     expect(redactTokenUrl(url)).toBe(expected);
   });

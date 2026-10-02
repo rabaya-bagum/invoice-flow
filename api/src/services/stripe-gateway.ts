@@ -75,11 +75,12 @@ export interface StripeGateway {
    * Refunds on the intent that are done or still in flight (Stripe units). `others` leaves out any
    * created by `requestKey`, whose own sum is `mine` (null when that request made none), so a retry
    * is not blocked by its own earlier refund but can be told apart from a different request.
+   * `failed` counts failed or canceled refunds (from `requestKey` only, when given).
    */
   refundedAmount(
     paymentIntentId: string,
     requestKey?: string,
-  ): Promise<{ others: number; mine: number | null }>;
+  ): Promise<{ others: number; mine: number | null; failed: number }>;
   /** Verifies the Stripe-Signature header against the raw body. Throws if invalid. */
   constructEvent(rawBody: Buffer, signature: string): StripeEventLite;
 }
@@ -227,15 +228,20 @@ export function createStripeGateway(secretKey: string, webhookSecret: string): S
       try {
         let others = 0;
         let mine: number | null = null;
+        let failed = 0;
         for await (const r of stripe.refunds.list({
           payment_intent: paymentIntentId,
           limit: 100,
         })) {
-          if (r.status === 'failed' || r.status === 'canceled') continue;
-          if (requestKey && r.metadata?.request_key === requestKey) mine = (mine ?? 0) + r.amount;
+          const ours = Boolean(requestKey) && r.metadata?.request_key === requestKey;
+          if (r.status === 'failed' || r.status === 'canceled') {
+            if (ours || !requestKey) failed++;
+            continue;
+          }
+          if (ours) mine = (mine ?? 0) + r.amount;
           else others += r.amount;
         }
-        return { others, mine };
+        return { others, mine, failed };
       } catch (e) {
         return wrap(e);
       }

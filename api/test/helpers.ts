@@ -324,6 +324,7 @@ export function fakeStripe() {
       amount: number;
       requestKey?: string;
       key: string;
+      status: string;
     }>,
     counts: { createPaymentIntent: 0, cancel: 0, createAccount: 0 },
     method: 'card' as ChargeLite['method'],
@@ -331,6 +332,7 @@ export function fakeStripe() {
     failIntentCreate: null as string | null,
     /** Make cancelPaymentIntent throw (network error, or Stripe refusing because money moved). */
     failCancel: false,
+    duringCancel: null as ((intentId: string) => Promise<void>) | null,
     /** Runs while a Stripe call is "in flight" (lets tests inspect locks or change state mid-call). */
     duringCreateIntent: null as (() => Promise<void>) | null,
     duringChargeLookup: null as ((chargeId: string) => Promise<void>) | null,
@@ -386,6 +388,7 @@ export function fakeStripe() {
     },
     async cancelPaymentIntent(id) {
       state.counts.cancel++;
+      await state.duringCancel?.(id);
       if (state.failCancel) throw new Error('stripe unavailable');
       const pi = intents.get(id);
       if (pi) pi.status = 'canceled';
@@ -401,7 +404,7 @@ export function fakeStripe() {
     async createRefund(p, key) {
       const done = refundsByKey.get(key);
       if (done) return done;
-      state.refunds.push({ ...p, key });
+      state.refunds.push({ ...p, key, status: 'succeeded' });
       const r = { id: `re_${uniq()}`, status: 'succeeded' };
       refundsByKey.set(key, r);
       return r;
@@ -409,11 +412,17 @@ export function fakeStripe() {
     async refundedAmount(paymentIntentId, requestKey) {
       let others = 0;
       let mine: number | null = null;
+      let failed = 0;
       for (const r of state.refunds.filter((r) => r.paymentIntentId === paymentIntentId)) {
-        if (requestKey && r.requestKey === requestKey) mine = (mine ?? 0) + r.amount;
+        const ours = Boolean(requestKey) && r.requestKey === requestKey;
+        if (r.status === 'failed') {
+          if (ours || !requestKey) failed++;
+          continue;
+        }
+        if (ours) mine = (mine ?? 0) + r.amount;
         else others += r.amount;
       }
-      return { others, mine };
+      return { others, mine, failed };
     },
     constructEvent: (raw, sig) =>
       real.webhooks.constructEvent(raw, sig, WEBHOOK_SECRET) as unknown as ReturnType<

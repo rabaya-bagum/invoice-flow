@@ -105,6 +105,34 @@ export function createInvoiceService(
   const releasePending = opts.releasePendingPayment ?? (async () => undefined);
   const repo = (q: Pick<Database, 'query'> = db) => createInvoiceRepository(q);
 
+  type InvoiceState = Pick<InvoiceRecord, 'status' | 'amountPaidMinor' | 'version'>;
+
+  function checkUpdate(current: InvoiceState, input: InvoiceWriteInput) {
+    if (!isEditable(current.status, current.amountPaidMinor)) {
+      throw new AppError(409, 'INVOICE_LOCKED', 'This invoice can no longer be edited');
+    }
+    if (input.version !== undefined && input.version !== current.version) {
+      throw new AppError(
+        409,
+        'VERSION_CONFLICT',
+        'This invoice was changed elsewhere. Reload and try again.',
+      );
+    }
+  }
+
+  function checkTransition(current: InvoiceState, to: ManualTransition) {
+    if (!canTransition(current.status, to)) {
+      throw new AppError(
+        409,
+        'INVALID_TRANSITION',
+        `A ${current.status.replace('_', ' ')} invoice cannot become ${to}`,
+      );
+    }
+    if (to === 'cancelled' && current.amountPaidMinor > 0) {
+      throw new AppError(409, 'INVALID_TRANSITION', 'An invoice with payments cannot be cancelled');
+    }
+  }
+
   /** Re-derives the breakdown from stored inputs so it can never drift from the stored totals. */
   function toDto(inv: InvoiceRecord, warnings: string[] = []): InvoiceDto {
     const totals = computeTotals(
@@ -229,26 +257,23 @@ export function createInvoiceService(
     toDto,
 
     async update(actor: Actor, id: string, input: InvoiceWriteInput) {
+      // Releasing cancels the customer's open payment form, so only do it for an edit that would
+      // otherwise go through. The same checks run again under the lock below.
+      const before = await repo().get(actor.businessId, id);
+      if (!before) throw notFound('Invoice');
+      checkUpdate(before, input);
+      await validateReferences(repo(), actor.businessId, input);
       await releasePending(actor.businessId, id);
       await db.transaction(async (tx) => {
         const r = repo(tx);
         const current = await r.lock(actor.businessId, id);
         if (!current) throw notFound('Invoice');
-        if (!isEditable(current.status, current.amountPaidMinor)) {
-          throw new AppError(409, 'INVOICE_LOCKED', 'This invoice can no longer be edited');
-        }
+        checkUpdate(current, input);
         if (await r.hasPendingPayment(actor.businessId, id)) {
           throw new AppError(
             409,
             'PAYMENT_IN_PROGRESS',
             'A payment is in progress for this invoice. Try again in a moment.',
-          );
-        }
-        if (input.version !== undefined && input.version !== current.version) {
-          throw new AppError(
-            409,
-            'VERSION_CONFLICT',
-            'This invoice was changed elsewhere. Reload and try again.',
           );
         }
         await validateReferences(r, actor.businessId, input);
@@ -304,30 +329,21 @@ export function createInvoiceService(
     },
 
     async transition(actor: Actor, id: string, to: ManualTransition) {
+      // As in update: never cancel a customer's payment form for a change that will be refused.
+      const before = await repo().get(actor.businessId, id);
+      if (!before) throw notFound('Invoice');
+      checkTransition(before, to);
       await releasePending(actor.businessId, id);
       await db.transaction(async (tx) => {
         const r = repo(tx);
         const current = await r.lock(actor.businessId, id);
         if (!current) throw notFound('Invoice');
-        if (!canTransition(current.status, to)) {
-          throw new AppError(
-            409,
-            'INVALID_TRANSITION',
-            `A ${current.status.replace('_', ' ')} invoice cannot become ${to}`,
-          );
-        }
+        checkTransition(current, to);
         if (await r.hasPendingPayment(actor.businessId, id)) {
           throw new AppError(
             409,
             'PAYMENT_IN_PROGRESS',
             'A payment is in progress for this invoice. Try again in a moment.',
-          );
-        }
-        if (to === 'cancelled' && current.amountPaidMinor > 0) {
-          throw new AppError(
-            409,
-            'INVALID_TRANSITION',
-            'An invoice with payments cannot be cancelled',
           );
         }
         await r.setStatus(actor.businessId, id, to);

@@ -36,6 +36,8 @@ interface Deps {
 }
 
 const PAYABLE: InvoiceStatus[] = ['sent', 'viewed', 'partially_paid'];
+/** Intent states in which the customer's money may already be moving. */
+const MONEY_MOVING = ['processing', 'succeeded', 'requires_capture'];
 const REUSABLE_INTENT = ['requires_payment_method', 'requires_confirmation', 'requires_action'];
 
 const money = (n: number, cur: string) =>
@@ -69,6 +71,15 @@ export function createPaymentService(deps: Deps) {
   });
 
   // ------------------------------------------------------------------ Stripe Connect onboarding
+  const providerError = (message = 'Could not reach the payment provider') =>
+    new AppError(502, 'PAYMENT_PROVIDER_ERROR', message);
+  const inProgress = () =>
+    new AppError(
+      409,
+      'PAYMENT_IN_PROGRESS',
+      'A payment for this invoice is already being processed',
+    );
+
   async function connectStatus(businessId: string) {
     const acct = await businesses.getStripeAccount(businessId);
     if (!acct?.accountId) {
@@ -84,7 +95,7 @@ export function createPaymentService(deps: Deps) {
     const s = await gateway()
       .retrieveAccount(acct.accountId)
       .catch(() => {
-        throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', 'Could not reach the payment provider');
+        throw providerError();
       });
     if (s.chargesEnabled !== acct.chargesEnabled)
       await businesses.setChargesEnabled(businessId, s.chargesEnabled);
@@ -116,21 +127,12 @@ export function createPaymentService(deps: Deps) {
       return { url: link.url };
     } catch (e) {
       // Only Stripe failures are "provider errors"; anything else (e.g. our database) must surface as itself.
-      if (e instanceof GatewayError)
-        throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', 'Could not reach the payment provider');
+      if (e instanceof GatewayError) throw providerError();
       throw e;
     }
   }
 
   // ------------------------------------------------------------------ creating a payment attempt
-  const providerError = (message = 'Could not reach the payment provider') =>
-    new AppError(502, 'PAYMENT_PROVIDER_ERROR', message);
-  const inProgress = () =>
-    new AppError(
-      409,
-      'PAYMENT_IN_PROGRESS',
-      'A payment for this invoice is already being processed',
-    );
 
   /** Locks the invoice and checks it can take `amountMinor` (default: the balance). Call inside a transaction. */
   async function payableInvoice(
@@ -215,12 +217,7 @@ export function createPaymentService(deps: Deps) {
         throw providerError();
       });
       // Money may already be moving: never start a second attempt.
-      if (
-        pi.status === 'processing' ||
-        pi.status === 'succeeded' ||
-        pi.status === 'requires_capture'
-      )
-        throw inProgress();
+      if (MONEY_MOVING.includes(pi.status)) throw inProgress();
       if (existing.amount_minor === amount && REUSABLE_INTENT.includes(pi.status)) {
         return {
           paymentId: existing.id,
@@ -233,7 +230,13 @@ export function createPaymentService(deps: Deps) {
       if (pi.status !== 'canceled') {
         // If the old intent is not provably cancelled, its client secret may still be live in
         // another tab: replacing it could let the customer pay twice. Keep it and ask for a retry.
-        await g.cancelPaymentIntent(existing.stripe_payment_intent_id).catch(() => {
+        await g.cancelPaymentIntent(existing.stripe_payment_intent_id).catch(async () => {
+          // Stripe refuses to cancel once the customer's confirm has moved money: report that, not
+          // a provider error that invites another attempt.
+          const now = await g
+            .retrievePaymentIntent(existing.stripe_payment_intent_id)
+            .catch(() => null);
+          if (now && MONEY_MOVING.includes(now.status)) throw inProgress();
           throw providerError('Could not start the payment. Please try again.');
         });
       }
@@ -348,11 +351,13 @@ export function createPaymentService(deps: Deps) {
   async function onSucceeded(
     tx: Queryable,
     pi: { id: string; amount_received?: number; amount: number; latest_charge?: string | null },
-    charge: ChargeLite,
+    charge: ChargeLite | null,
   ) {
     const { pay, inv } = repos(tx);
     const payment = await pay.findByIntentForUpdate(pi.id);
     if (!payment || payment.status === 'successful' || payment.status === 'refunded') return; // unknown or already applied
+    // The row changed after the charge was skipped: fail so Stripe's retry looks it up.
+    if (!charge) throw new Error(`charge not loaded for ${pi.id}`);
     await inv.lock(payment.business_id, payment.invoice_id);
 
     const currency = payment.currency as CurrencyCode;
@@ -485,22 +490,28 @@ export function createPaymentService(deps: Deps) {
     } catch {
       throw new AppError(400, 'INVALID_SIGNATURE', 'Invalid signature');
     }
-    // Stripe is called before the transaction opens, never inside it. If this lookup fails, nothing
-    // is recorded and Stripe's retry runs the whole event again.
     const obj = event.data.object;
-    const charge: ChargeLite | null =
-      event.type !== 'payment_intent.succeeded'
-        ? null
-        : obj.latest_charge
+    const { pay: peek } = repos(db);
+    // Redeliveries are common: answer them without calling Stripe (the insert below still decides).
+    if (await peek.eventRecorded(event.id)) return { duplicate: true };
+    // Stripe is called before the transaction opens, never inside it, and only when the event will
+    // apply. If this lookup fails, nothing is recorded and Stripe's retry runs the whole event again.
+    let charge: ChargeLite | null = null;
+    if (event.type === 'payment_intent.succeeded') {
+      const status = await peek.statusForIntent(obj.id);
+      if (status !== null && status !== 'successful' && status !== 'refunded') {
+        charge = obj.latest_charge
           ? await g.retrieveCharge(obj.latest_charge)
           : { id: '', receiptUrl: null, method: 'card' };
+      }
+    }
     return db.transaction(async (tx) => {
       const { pay } = repos(tx);
       if (!(await pay.recordEvent(event.id, event.type, event.data.object)))
         return { duplicate: true };
       switch (event.type) {
         case 'payment_intent.succeeded':
-          await onSucceeded(tx, obj, charge as ChargeLite);
+          await onSucceeded(tx, obj, charge);
           break;
         case 'payment_intent.payment_failed':
           await onFailed(tx, obj, false);
@@ -529,7 +540,9 @@ export function createPaymentService(deps: Deps) {
     const g = gateway();
     const payment = await createPaymentRepository(db).get(actor.businessId, paymentId);
     if (!payment) throw notFound('Payment');
-    if (payment.status !== 'successful' || !payment.stripePaymentIntentId) {
+    // A fully refunded payment can still take an exact retry of the request that refunded it.
+    const retryable = payment.status === 'refunded' && requestKey;
+    if ((payment.status !== 'successful' && !retryable) || !payment.stripePaymentIntentId) {
       throw new AppError(409, 'NOT_REFUNDABLE', 'Only successful payments can be refunded');
     }
     if (!isSupportedCurrency(payment.currency))
@@ -537,10 +550,15 @@ export function createPaymentService(deps: Deps) {
     // Ask Stripe what is already refunded or in flight: our refunded_minor only moves when the
     // charge.refunded webhook lands, so it misses refunds requested moments ago.
     const atStripe = await g.refundedAmount(payment.stripePaymentIntentId, requestKey).catch(() => {
-      throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', 'Could not reach the payment provider');
+      throw providerError();
     });
+    const mine = atStripe.mine === null ? null : fromStripeAmount(atStripe.mine, payment.currency);
+    if (payment.status === 'refunded' && mine === null)
+      throw new AppError(409, 'NOT_REFUNDABLE', 'Only successful payments can be refunded');
+    // refunded_minor may already include this request's own refund (its webhook landed after the
+    // response was lost); that one must not block the retry.
     const refunded = Math.max(
-      payment.refundedMinor,
+      payment.refundedMinor - (mine ?? 0),
       fromStripeAmount(atStripe.others, payment.currency),
     );
     const remaining = payment.amountMinor - refunded;
@@ -560,25 +578,24 @@ export function createPaymentService(deps: Deps) {
       throw new AppError(
         409,
         'REFUND_ALREADY_ISSUED',
-        `An earlier refund of ${money(fromStripeAmount(atStripe.mine, payment.currency), payment.currency)} from this request already went through`,
+        `An earlier refund of ${money(mine as number, payment.currency)} from this request already went through`,
       );
     }
+    // Stripe replays the stored response for a reused key, so a key whose refund failed would hand
+    // back that failure as if it were new. Each failed attempt moves the key on.
+    const retry = atStripe.failed > 0 ? `:f${atStripe.failed}` : '';
     try {
       // With a client key, a retry of the same request returns Stripe's original refund even if it
       // already went through. Without one, duplicates that see the same Stripe total share a key; a
       // later, deliberate refund sees the earlier one in that total and gets a new key.
       await g.createRefund(
         { paymentIntentId: payment.stripePaymentIntentId, amount: stripeAmount, requestKey },
-        requestKey
+        (requestKey
           ? `refund:${payment.id}:${amount}:${requestKey}`
-          : `refund:${payment.id}:${atStripe.others}:${amount}`,
+          : `refund:${payment.id}:${atStripe.others}:${amount}`) + retry,
       );
     } catch {
-      throw new AppError(
-        502,
-        'PAYMENT_PROVIDER_ERROR',
-        'The refund could not be issued. Please try again.',
-      );
+      throw providerError('The refund could not be issued. Please try again.');
     }
     await createInvoiceRepository(db).addAudit({
       businessId: actor.businessId,

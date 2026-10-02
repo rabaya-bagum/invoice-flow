@@ -1,5 +1,5 @@
 import type { TaxRateInput } from '@invoiceflow/shared';
-import type { Database } from '../db';
+import type { Database, Queryable } from '../db';
 
 export interface TaxRate extends TaxRateInput {
   id: string;
@@ -12,6 +12,17 @@ export interface TaxRateRepository {
   create(businessId: string, input: TaxRateInput): Promise<TaxRate>;
   update(businessId: string, id: string, input: TaxRateInput): Promise<TaxRate | null>;
   delete(businessId: string, id: string): Promise<boolean>;
+}
+
+/**
+ * Serializes default changes within a business. Without it, two concurrent "make default" writes
+ * each lock their own rate and then wait on the other's (deadlock), or both pass the clear and
+ * collide on the one-default index.
+ */
+async function lockDefault(tx: Queryable, businessId: string) {
+  await tx.query("SELECT pg_advisory_xact_lock(hashtext('tax_rates:default:' || $1))", [
+    businessId,
+  ]);
 }
 
 export function createTaxRateRepository(db: Database): TaxRateRepository {
@@ -27,10 +38,12 @@ export function createTaxRateRepository(db: Database): TaxRateRepository {
     create: (businessId, input) =>
       db.transaction(async (tx) => {
         // Setting a new default first clears the old one (partial unique index allows only one).
-        if (input.isDefault)
+        if (input.isDefault) {
+          await lockDefault(tx, businessId);
           await tx.query('UPDATE tax_rates SET is_default = false WHERE business_id = $1', [
             businessId,
           ]);
+        }
         const r = await tx.query<TaxRate>(
           `INSERT INTO tax_rates (business_id, name, rate_bps, is_default) VALUES ($1, $2, $3, $4) RETURNING ${COLS}`,
           [businessId, input.name, input.rateBps, input.isDefault],
@@ -40,6 +53,7 @@ export function createTaxRateRepository(db: Database): TaxRateRepository {
 
     update: (businessId, id, input) =>
       db.transaction(async (tx) => {
+        if (input.isDefault) await lockDefault(tx, businessId);
         // Check (and lock) the target first: a missing id must not clear the current default.
         const target = await tx.query(
           'SELECT 1 FROM tax_rates WHERE id = $1 AND business_id = $2 FOR UPDATE',

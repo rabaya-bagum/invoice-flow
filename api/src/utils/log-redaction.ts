@@ -2,7 +2,7 @@
  * Customer share tokens sit in the path of the public routes, and a token alone opens the document
  * and its pay page. Request logs must never contain a working link, so the token segment is masked.
  */
-const TOKEN_PATH = /^(\/(?:pay|estimate|public\/invoices|public\/estimates)\/)[^/?#]+/;
+const TOKEN_PATH = /^(\/(?:pay|estimate|public\/invoices|public\/estimates)\/)[^/?#]+/i;
 
 export const REDACTED = '[redacted]';
 

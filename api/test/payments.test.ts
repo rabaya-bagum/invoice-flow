@@ -266,6 +266,29 @@ describe('creating a payment', () => {
     expect(retry.body.paymentId).not.toBe(first.body.paymentId);
   });
 
+  it('reports a payment in progress when Stripe refuses the cancel because money started moving', async () => {
+    const a = await account();
+    const inv = await a.invoice();
+    const first = await a.intent(inv.id, 40_000);
+    const pi = [...ctx.stripe.state.intents.values()].find(
+      (p) => p.clientSecret === first.body.clientSecret,
+    )!;
+    // The customer confirms in another tab between our retrieve and our cancel.
+    ctx.stripe.state.duringCancel = async () => {
+      pi.status = 'processing';
+      ctx.stripe.state.failCancel = true;
+    };
+    try {
+      const res = await a.intent(inv.id, 60_000);
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('PAYMENT_IN_PROGRESS');
+    } finally {
+      ctx.stripe.state.duringCancel = null;
+      ctx.stripe.state.failCancel = false;
+    }
+    expect((await dbPayments(inv.id)).map((r) => r.status)).toEqual(['pending']);
+  });
+
   it('never holds the invoice lock (or a transaction) while waiting on Stripe', async () => {
     const a = await account();
     const inv = await a.invoice();
@@ -486,6 +509,19 @@ describe('creating a payment', () => {
     const res = await a.call('post', `/v1/invoices/${inv.id}/transition`).send({ to: 'cancelled' });
     expect(res.status).toBe(200);
     expect((await a.get(inv.id)).status).toBe('cancelled');
+  });
+
+  it("leaves the payment form alone when the owner's change is refused anyway", async () => {
+    const a = await account();
+    const { inv, pi, body } = await abandoned(a);
+    const stale = await a
+      .call('put', `/v1/invoices/${inv.id}`)
+      .send({ ...body, version: (await a.get(inv.id)).version - 1 });
+    expect(stale.body.error.code).toBe('VERSION_CONFLICT');
+    const invalid = await a.call('post', `/v1/invoices/${inv.id}/transition`).send({ to: 'sent' });
+    expect(invalid.body.error.code).toBe('INVALID_TRANSITION');
+    expect(pi.status).toBe('requires_payment_method');
+    expect((await dbPayments(inv.id)).map((r) => r.status)).toEqual(['pending']);
   });
 
   it('keeps the invoice locked if the abandoned intent cannot be cancelled at Stripe', async () => {
@@ -716,6 +752,30 @@ describe('successful payments', () => {
     expect((await a.get(inv.id)).status).toBe('paid');
   });
 
+  it('answers a redelivered or unknown event without asking Stripe for the charge', async () => {
+    const a = await account();
+    const { piId } = await paid(a, 40_000);
+    const ev = ctx.stripe.succeededEvent(piId);
+    expect((await hook(ctx, ev)).body.duplicate).toBe(false);
+    ctx.stripe.state.failChargeLookup = 2; // Stripe's charges API is down
+    try {
+      const again = await hook(ctx, ev);
+      expect([again.status, again.body.duplicate]).toEqual([200, true]);
+      // A new event for an intent that is already applied, or one we never created.
+      expect((await hook(ctx, ctx.stripe.succeededEvent(piId))).status).toBe(200);
+      const unknown = ctx.stripe.signed('payment_intent.succeeded', {
+        id: 'pi_unknown',
+        object: 'payment_intent',
+        amount: 1_000,
+        latest_charge: 'ch_unknown',
+      });
+      expect((await hook(ctx, unknown)).status).toBe(200);
+    } finally {
+      expect(ctx.stripe.state.failChargeLookup).toBe(2);
+      ctx.stripe.state.failChargeLookup = 0;
+    }
+  });
+
   it('rolls back and lets Stripe retry when processing fails midway', async () => {
     const a = await account();
     const { inv, piId } = await paid(a);
@@ -939,6 +999,51 @@ describe('refunds', () => {
     const next = await refundWithKey(a, paymentId, 'next-key-0001');
     expect(next.status).toBe(202);
     expect(next.body.requested).toBe(99_000);
+  });
+
+  it('replays a keyed refund whose webhook landed before the retry', async () => {
+    const a = await account();
+    const { piId, paymentId } = await paidInvoice(a);
+    const before = ctx.stripe.state.refunds.length;
+    const body = { amountMinor: 60_000 };
+    expect((await refundWithKey(a, paymentId, 'late-key-0001', body)).status).toBe(202);
+    await hook(ctx, ctx.stripe.refundedEvent(piId, 60_000)); // response lost, webhook landed
+    const retry = await refundWithKey(a, paymentId, 'late-key-0001', body);
+    expect(retry.status).toBe(202);
+    expect(ctx.stripe.state.refunds.length - before).toBe(1);
+  });
+
+  it('replays a keyed full refund even after the payment shows as refunded', async () => {
+    const a = await account();
+    const { piId, paymentId } = await paidInvoice(a);
+    const before = ctx.stripe.state.refunds.length;
+    expect((await refundWithKey(a, paymentId, 'full-late-001')).status).toBe(202);
+    await hook(ctx, ctx.stripe.refundedEvent(piId, 100_000));
+    const retry = await refundWithKey(a, paymentId, 'full-late-001');
+    expect(retry.status).toBe(202);
+    expect(retry.body.requested).toBe(100_000);
+    expect(ctx.stripe.state.refunds.length - before).toBe(1);
+    // Any other request for a refunded payment is still refused.
+    const other = await refundWithKey(a, paymentId, 'other-key-001');
+    expect(other.body.error.code).toBe('NOT_REFUNDABLE');
+  });
+
+  it.each([
+    ['with a client key', 'fail-key-0001'],
+    ['without one', undefined],
+  ])('retries a refund that failed at Stripe as a new refund (%s)', async (_label, key) => {
+    const a = await account();
+    const { paymentId } = await paidInvoice(a);
+    const send = () =>
+      key
+        ? refundWithKey(a, paymentId, key, { amountMinor: 30_000 })
+        : a.call('post', `/v1/payments/${paymentId}/refund`).send({ amountMinor: 30_000 });
+    const before = ctx.stripe.state.refunds.length;
+    expect((await send()).status).toBe(202);
+    ctx.stripe.state.refunds.at(-1)!.status = 'failed'; // e.g. the card account was closed
+    expect((await send()).status).toBe(202);
+    expect(ctx.stripe.state.refunds.length - before).toBe(2);
+    expect(ctx.stripe.state.refunds.at(-1)!.key).not.toBe(ctx.stripe.state.refunds.at(-2)!.key);
   });
 
   it('issues two deliberate refunds of the same amount before the first webhook lands', async () => {

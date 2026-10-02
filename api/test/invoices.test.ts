@@ -577,6 +577,25 @@ describe('tax rates', () => {
     expect(await defaults()).toEqual([gst.body.id]);
   });
 
+  it('concurrent "make default" updates on different rates do not deadlock', async () => {
+    const a = await account();
+    const rates = [];
+    for (const name of ['A', 'B', 'C', 'D'])
+      rates.push((await a.call('post', '/v1/tax-rates').send({ name, rateBps: 500 })).body.id);
+    for (let round = 0; round < 5; round++) {
+      const res = await Promise.all(
+        rates.map((id, i) =>
+          a
+            .call('put', `/v1/tax-rates/${id}`)
+            .send({ name: 'ABCD'[i], rateBps: 500, isDefault: true }),
+        ),
+      );
+      expect(res.map((r) => r.status)).toEqual([200, 200, 200, 200]);
+      const items = (await a.call('get', '/v1/tax-rates')).body.items;
+      expect(items.filter((r: { isDefault: boolean }) => r.isDefault)).toHaveLength(1);
+    }
+  });
+
   it('deleting a rate does not change existing invoices', async () => {
     const a = await account();
     const r = await a.call('post', '/v1/tax-rates').send({ name: 'GST', rateBps: 500 });

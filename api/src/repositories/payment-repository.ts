@@ -68,6 +68,10 @@ export interface PaymentRepository {
   netPaid(invoiceId: string): Promise<{ net: number; anyRefund: boolean }>;
   /** Records a webhook event id. Returns false if it was already recorded (duplicate delivery). */
   recordEvent(id: string, type: string, payload: unknown): Promise<boolean>;
+  /** True once an event has been recorded (its effects committed with it). No locks. */
+  eventRecorded(id: string): Promise<boolean>;
+  /** Status of the payment for an intent, or null if there is none. No locks. */
+  statusForIntent(intentId: string): Promise<PaymentStatus | null>;
   markEventProcessed(id: string): Promise<void>;
   addNotification(n: {
     businessId: string;
@@ -204,6 +208,19 @@ export function createPaymentRepository(db: Queryable): PaymentRepository {
         [id, type, JSON.stringify(payload)],
       );
       return (r.rowCount ?? 0) > 0;
+    },
+
+    async eventRecorded(id) {
+      const r = await db.query('SELECT 1 FROM webhook_events WHERE id = $1', [id]);
+      return (r.rowCount ?? 0) > 0;
+    },
+
+    async statusForIntent(intentId) {
+      const r = await db.query<{ status: PaymentStatus }>(
+        'SELECT status FROM payments WHERE stripe_payment_intent_id = $1',
+        [intentId],
+      );
+      return r.rows[0]?.status ?? null;
     },
 
     async markEventProcessed(id) {
