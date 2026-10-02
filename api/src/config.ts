@@ -58,7 +58,11 @@ export type Config = z.infer<typeof schema>;
 
 /** Parse and validate env. Fails fast with a readable message instead of booting half-configured. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = schema.safeParse(env);
+  // Blank entries (`KEY=` as shipped in .env.example) mean "not set", not an invalid empty value.
+  const set = Object.fromEntries(
+    Object.entries(env).filter(([, v]) => v !== undefined && v !== ''),
+  );
+  const parsed = schema.safeParse(set);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Invalid environment configuration: ${issues}`);

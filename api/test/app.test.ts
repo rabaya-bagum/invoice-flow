@@ -56,6 +56,12 @@ describe('loadConfig', () => {
   it('requires Supabase settings in production', () => {
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/SUPABASE_URL/);
   });
+  it('treats blank values as unset', () => {
+    const cfg = loadConfig({ PUBLIC_LINK_SECRET: '', STRIPE_SECRET_KEY: '', PORT: '' });
+    expect(cfg.PUBLIC_LINK_SECRET).toBeUndefined();
+    expect(cfg.STRIPE_SECRET_KEY).toBeUndefined();
+    expect(cfg.PORT).toBe(4000);
+  });
   it('parses CORS origins', () => {
     expect(loadConfig({ CORS_ORIGINS: 'https://a.com, https://b.com' }).CORS_ORIGINS).toEqual([
       'https://a.com',
