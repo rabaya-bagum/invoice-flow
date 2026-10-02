@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { InvoiceListScreen } from '../src/screens/InvoiceListScreen';
+import { InvoiceListScreen, dueTiming } from '../src/screens/InvoiceListScreen';
 import { InvoiceScreen } from '../src/screens/InvoiceScreen';
 import { TaxRatesScreen } from '../src/screens/TaxRatesScreen';
 import { ApiError } from '../src/services/api';
@@ -89,12 +89,17 @@ describe('InvoiceListScreen', () => {
   it('filters by date preset using the business timezone', async () => {
     const { api } = await render();
     await screen.findByText('Acme Ltd');
+    // Dates sit behind one button, so they don't push the list down.
+    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Date filter: Any date'));
     await fireEvent.press(screen.getByRole('button', { name: 'Today' }));
+    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull(); // closes on pick
     await waitFor(() => {
       const last = (api.listInvoices as jest.Mock).mock.calls.at(-1)[0];
       expect(last.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(last.from).toBe(last.to);
     });
+    await fireEvent.press(screen.getByLabelText('Date filter: Today'));
     await fireEvent.press(screen.getByRole('button', { name: 'This month' }));
     await waitFor(() => {
       const last = (api.listInvoices as jest.Mock).mock.calls.at(-1)[0];
@@ -106,12 +111,56 @@ describe('InvoiceListScreen', () => {
   it('sends the search text and shows an empty state', async () => {
     const list = jest.fn(async () => ({ items: [], total: 0 }));
     const { api } = await render(list);
-    expect(await screen.findByText('No invoices yet')).toBeTruthy();
+    expect(await screen.findByText('Create your first invoice')).toBeTruthy();
     await fireEvent.changeText(screen.getByLabelText('Search invoices'), '125.50');
     await waitFor(() =>
       expect(api.listInvoices).toHaveBeenCalledWith(expect.objectContaining({ search: '125.50' })),
     );
     expect(await screen.findByText('No matching invoices')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Clear filters'));
+    expect(await screen.findByText('Create your first invoice')).toBeTruthy();
+    expect(screen.getByLabelText('Search invoices').props.value).toBe('');
+  });
+
+  it('counts the invoices shown and offers creating one from the empty state', async () => {
+    const list = jest.fn(async () => ({ items: [], total: 0 }));
+    const { navigation } = await render(list);
+    expect(await screen.findByText('0 invoices')).toBeTruthy();
+    await fireEvent.press(screen.getAllByLabelText('New invoice')[0]!);
+    expect(navigation.navigate).toHaveBeenCalledWith('Invoice');
+  });
+});
+
+describe('invoice row timing', () => {
+  const t = (displayStatus: string, dueDate: string) =>
+    dueTiming({ displayStatus, dueDate } as never, '2026-10-02');
+
+  it('counts down for invoices still awaiting money, and flags late ones', () => {
+    expect(t('sent', '2026-10-07')).toEqual({ text: 'Due in 5 days', urgent: false });
+    expect(t('viewed', '2026-10-03')).toEqual({ text: 'Due in 1 day', urgent: false });
+    expect(t('partially_paid', '2026-10-02')).toEqual({ text: 'Due today', urgent: true });
+    expect(t('overdue', '2026-09-20')).toEqual({ text: 'Overdue by 12 days', urgent: true });
+  });
+
+  it('shows the plain due date for drafts and settled invoices', () => {
+    for (const status of ['draft', 'paid', 'cancelled', 'refunded'])
+      expect(t(status, '2026-09-20')).toEqual({ text: 'Due Sep 20, 2026', urgent: false });
+  });
+});
+
+describe('InvoiceListScreen summary', () => {
+  it('shows the business-wide balance owed next to the unfiltered list only', async () => {
+    setupApi({
+      listInvoices: jest.fn(async () => ({ items: [invoiceSummary()], total: 12 })),
+      getBusiness: jest.fn(async () => business),
+      getDashboard: jest.fn(async () => ({
+        currencies: [{ currency: 'USD', outstandingMinor: 2_485_000 }],
+      })),
+    });
+    await renderWithQuery(<InvoiceListScreen navigation={nav() as never} route={{} as never} />);
+    expect(await screen.findByText('12 invoices · $24,850.00 outstanding')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Draft' }));
+    expect(await screen.findByText('12 invoices')).toBeTruthy();
   });
 });
 

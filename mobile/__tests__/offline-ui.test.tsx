@@ -392,7 +392,7 @@ describe('list, banner and sync screen', () => {
     );
     expect(await screen.findByText('Not synced')).toBeTruthy();
     expect(screen.getByLabelText(/^Invoice New draft, Acme Ltd, \$100\.00/)).toBeTruthy();
-    expect(screen.getByText('INV-0001 · Due Oct 15, 2026')).toBeTruthy();
+    expect(screen.getByText(/^INV-0001 · (Due|Overdue)/)).toBeTruthy();
     await fireEvent.press(screen.getByLabelText(/^Invoice New draft/));
     expect(navigation.navigate).toHaveBeenCalledWith('Invoice', { id: 'q1' });
   });

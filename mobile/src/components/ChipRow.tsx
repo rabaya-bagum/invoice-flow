@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { radius, spacing } from '../theme';
+import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
 
 interface Props<T extends string> {
@@ -25,6 +25,8 @@ export function ChipRow<T extends string>({
       horizontal
       showsHorizontalScrollIndicator={false}
       accessibilityLabel={label}
+      // Without this a horizontal ScrollView grows to fill the column on web, stretching the chips.
+      style={styles.scroll}
       contentContainerStyle={styles.row}
       keyboardShouldPersistTaps="handled"
     >
@@ -39,14 +41,12 @@ export function ChipRow<T extends string>({
             style={[
               styles.chip,
               {
-                borderColor: selected ? c.primary : c.border,
-                backgroundColor: selected ? c.primary : 'transparent',
+                borderColor: selected ? c.primary : c.surface,
+                backgroundColor: selected ? c.primary : c.surface,
               },
             ]}
           >
-            <Text style={{ color: selected ? c.onPrimary : c.text, fontWeight: '600' }}>
-              {o.label}
-            </Text>
+            <Text style={[styles.text, { color: selected ? c.onPrimary : c.text }]}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -55,12 +55,14 @@ export function ChipRow<T extends string>({
 }
 
 const styles = StyleSheet.create({
+  scroll: { flexGrow: 0 },
   row: { paddingHorizontal: spacing.md, gap: spacing.sm, paddingVertical: spacing.xs },
   chip: {
-    minHeight: 40,
+    height: 36,
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.button,
+    paddingHorizontal: 14,
+    borderRadius: 999,
     borderWidth: 1,
   },
+  text: { fontSize: 14, fontWeight: '600' },
 });

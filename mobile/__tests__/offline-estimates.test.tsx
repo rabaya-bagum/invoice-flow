@@ -447,7 +447,7 @@ describe('lists and the sync screen keep the two kinds apart', () => {
     await mount(
       <InvoiceListScreen navigation={nav() as never} route={{ params: undefined } as never} />,
     );
-    await screen.findByText('No invoices yet');
+    await screen.findByText('Create your first invoice');
     expect(screen.queryByText('Not synced')).toBeNull();
   });
 

@@ -22,12 +22,24 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry: () => 
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({
+  title,
+  hint,
+  action,
+}: {
+  title: string;
+  hint?: string;
+  /** A way out of the empty state, e.g. "Create your first invoice" or "Clear filters". */
+  action?: { label: string; onPress: () => void; variant?: 'primary' | 'secondary' };
+}) {
   const c = useTheme();
   return (
     <View style={styles.center}>
       <Text style={{ color: c.text, fontSize: 18, fontWeight: '600' }}>{title}</Text>
       {hint ? <Text style={{ color: c.muted, textAlign: 'center' }}>{hint}</Text> : null}
+      {action ? (
+        <Button title={action.label} variant={action.variant} onPress={action.onPress} />
+      ) : null}
     </View>
   );
 }

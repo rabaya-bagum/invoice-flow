@@ -155,10 +155,17 @@ function MoreStack() {
   );
 }
 
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+/** Outline when inactive, filled when selected, as in native iOS tab bars. */
 const icon =
-  (name: React.ComponentProps<typeof Ionicons>['name']) =>
-  ({ color, size }: { color: string; size: number }) => (
-    <Ionicons name={name} color={color} size={size} />
+  (name: IconName) =>
+  ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+    <Ionicons
+      name={focused ? (name.replace(/-outline$/, '') as IconName) : name}
+      color={color}
+      size={size}
+    />
   );
 
 export function AppTabs() {
