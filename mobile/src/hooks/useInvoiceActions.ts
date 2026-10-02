@@ -1,7 +1,6 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Linking, Share } from 'react-native';
+import { Linking } from 'react-native';
 import { useAuth } from '../store/auth';
+import { previewPdfFile, shareText, sharePdfFile } from '../utils/pdf-actions';
 import { savePdfToCache } from '../utils/pdf-files';
 import { useSubmit } from './useSubmit';
 
@@ -20,27 +19,20 @@ export function useInvoiceActions(invoice: { id: string; number: string }, busin
     /** Native PDF preview (print dialog with preview on both platforms). */
     previewPdf: () =>
       state.run(async () => {
-        await Print.printAsync({ uri: await fetchPdf() });
+        await previewPdfFile(await fetchPdf());
       }),
 
     /** Native share sheet with the PDF attached (Save to Files, Messages, Mail, other apps). */
     sharePdf: () =>
       state.run(async () => {
-        const uri = await fetchPdf();
-        if (!(await Sharing.isAvailableAsync()))
-          throw Object.assign(new Error('unavailable'), { code: 'PDF_FAILED' });
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          UTI: 'com.adobe.pdf',
-          dialogTitle: `Invoice ${invoice.number}`,
-        });
+        await sharePdfFile(await fetchPdf(), invoice.number, `Invoice ${invoice.number}`);
       }),
 
     /** Share the customer-facing link through any messaging app. */
     shareLink: () =>
       state.run(async () => {
         const { url } = await api.createShareLink(invoice.id);
-        await Share.share({ message: `Invoice ${invoice.number} from ${businessName}: ${url}` });
+        await shareText(`Invoice ${invoice.number} from ${businessName}: ${url}`);
       }),
 
     /** Opens the customer payment page in the browser. */

@@ -9,3 +9,6 @@ export function savePdfToCache(invoiceNumber: string, bytes: Uint8Array): string
   file.write(bytes);
   return file.uri;
 }
+
+/** Name used when the PDF is saved or shared. */
+export const pdfFileName = (number: string) => `${safe(number)}.pdf`;

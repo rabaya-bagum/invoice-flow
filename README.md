@@ -215,6 +215,7 @@ estimate page where the customer reads, accepts or declines, with owner notifica
 Phase 18 extends offline drafts to estimates (same queue, conflict flow and encryption).
 Phase 19 adds generated placeholder brand assets: `pnpm --filter mobile assets:build [-- --color "#RRGGBB"]` regenerates the icon, adaptive icon layers, splash and favicon (a test checks sizes, opacity and the Android safe zone).
 Phase 20 guards the web build: the web export runs in CI, and tests cover the `localStorage` secure-store stand-in, the Metro resolver swap and web's memory-only offline drafts.
+Phase 21 makes PDFs and link sharing work on web: preview opens a tab, "share" downloads the file, links fall back to the clipboard (native behaviour is unchanged).
 Phase 16 encrypts the on-device offline data (per-user key in the secure store, erased on sign-out).
 Phase 15 is a polish pass: tested colour contrast, an accessibility structure audit, error-message
 coverage, a 20,000-invoice performance smoke test, a summary notification for mass-overdue, and database

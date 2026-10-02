@@ -1,7 +1,5 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Share } from 'react-native';
 import { useAuth } from '../store/auth';
+import { previewPdfFile, shareText, sharePdfFile } from '../utils/pdf-actions';
 import { savePdfToCache } from '../utils/pdf-files';
 import { useSubmit } from './useSubmit';
 
@@ -17,26 +15,19 @@ export function useEstimateActions(estimate: { id: string; number: string }, bus
     error: state.error,
     previewPdf: () =>
       state.run(async () => {
-        await Print.printAsync({ uri: await fetchPdf() });
+        await previewPdfFile(await fetchPdf());
       }),
     /** The customer-facing page where they can read the estimate and accept or decline it. */
     shareLink: () =>
       state.run(async () => {
         const { url } = await api.createEstimateShareLink(estimate.id);
-        await Share.share({
-          message: `Estimate ${estimate.number}${businessName ? ` from ${businessName}` : ''}: ${url}`,
-        });
+        await shareText(
+          `Estimate ${estimate.number}${businessName ? ` from ${businessName}` : ''}: ${url}`,
+        );
       }),
     sharePdf: () =>
       state.run(async () => {
-        const uri = await fetchPdf();
-        if (!(await Sharing.isAvailableAsync()))
-          throw Object.assign(new Error('unavailable'), { code: 'PDF_FAILED' });
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          UTI: 'com.adobe.pdf',
-          dialogTitle: `Estimate ${estimate.number}`,
-        });
+        await sharePdfFile(await fetchPdf(), estimate.number, `Estimate ${estimate.number}`);
       }),
   };
 }
