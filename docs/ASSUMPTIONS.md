@@ -420,3 +420,6 @@ an estimate, viewing other documents) still needs the network.
   `node_modules/expo/bundledNativeModules.json`. Run `npx expo-doctor` on a normal machine.
 - `package.json` pins `baseline-browser-mapping@2.11.26` via a pnpm override because the registry
   listed 2.11.27 but served 404 for its tarball. Remove the override once that is fixed.
+- **Web is a dev convenience, not a store target.** Web keeps the session in `localStorage` (not a secret store),
+  has no biometric lock or push, and holds offline drafts in memory only (lost on reload, never encrypted). CI
+  checks that the web bundle builds; none of it has been exercised in a real browser session.

@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        platform: [android, ios]
+        platform: [android, ios, web]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
