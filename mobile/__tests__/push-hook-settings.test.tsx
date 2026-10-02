@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Notifications from 'expo-notifications';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
 import { openTarget } from '../src/navigation/ref';
 import { SettingsScreen } from '../src/screens/SettingsScreen';
@@ -59,6 +59,16 @@ beforeEach(() => {
 });
 
 describe('usePushNotifications', () => {
+  it('does nothing on web, where expo-notifications is unavailable', async () => {
+    jest.replaceProperty(Platform, 'OS', 'web');
+    await mountHook();
+    expect(P.configureNotificationHandler).not.toHaveBeenCalled();
+    expect(P.registerForPush).not.toHaveBeenCalled();
+    expect(N.getLastNotificationResponseAsync).not.toHaveBeenCalled();
+    expect(N.addNotificationReceivedListener).not.toHaveBeenCalled();
+    jest.restoreAllMocks();
+  });
+
   it('registers the device on mount when notifications are on', async () => {
     await mountHook();
     await waitFor(() => expect(P.registerForPush).toHaveBeenCalledWith(api));

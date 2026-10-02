@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { flushPendingTarget, openTarget } from '../navigation/ref';
 import {
   configureNotificationHandler,
@@ -21,6 +22,11 @@ export function usePushNotifications() {
   const qc = useQueryClient();
 
   useEffect(() => {
+    // expo-notifications has no web implementation (its calls throw UnavailabilityError).
+    if (Platform.OS === 'web') {
+      flushPendingTarget();
+      return;
+    }
     configureNotificationHandler();
     let cancelled = false;
 
