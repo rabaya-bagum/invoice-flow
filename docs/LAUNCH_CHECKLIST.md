@@ -39,7 +39,7 @@ Resend, Expo or Supabase accounts from the build environment.
       `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` to each
       (`eas env:create`). Only these public values belong in the app; never the service-role or Stripe
       secret keys.
-- [ ] Replace the template icon, adaptive icon, splash image and favicon in `mobile/assets/` (1024x1024
+- [ ] Replace the generated placeholder icon (from `pnpm --filter mobile assets:build`), adaptive icon, splash image and favicon in `mobile/assets/` (1024x1024
       icon, no transparency for iOS).
 - [ ] `eas build --profile development` and run `cd mobile && maestro test .maestro` on a device.
 - [ ] `eas build --profile preview` and test on real phones: push tokens and delivery, Apple/Google Pay

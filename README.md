@@ -184,6 +184,7 @@ Phase 11 adds estimates (create, email, convert to a draft invoice). Phase 12 ad
 estimate page where the customer reads, accepts or declines, with owner notifications. Not built yet
 (v1.1): nothing from the original plan; see the launch checklist.
 Phase 18 extends offline drafts to estimates (same queue, conflict flow and encryption).
+Phase 19 adds generated placeholder brand assets: `pnpm --filter mobile assets:build [-- --color "#RRGGBB"]` regenerates the icon, adaptive icon layers, splash and favicon (a test checks sizes, opacity and the Android safe zone).
 Phase 16 encrypts the on-device offline data (per-user key in the secure store, erased on sign-out).
 Phase 15 is a polish pass: tested colour contrast, an accessibility structure audit, error-message
 coverage, a 20,000-invoice performance smoke test, a summary notification for mass-overdue, and database
