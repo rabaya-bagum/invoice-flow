@@ -72,10 +72,14 @@ export interface StripeGateway {
     idempotencyKey: string,
   ): Promise<{ id: string; status: string }>;
   /**
-   * Sum (Stripe units) of refunds on the intent that are done or still in flight, leaving out any
-   * created by `excludeRequestKey` (so a retried request is not blocked by its own earlier refund).
+   * Refunds on the intent that are done or still in flight (Stripe units). `others` leaves out any
+   * created by `requestKey`, whose own sum is `mine` (null when that request made none), so a retry
+   * is not blocked by its own earlier refund but can be told apart from a different request.
    */
-  refundedAmount(paymentIntentId: string, excludeRequestKey?: string): Promise<number>;
+  refundedAmount(
+    paymentIntentId: string,
+    requestKey?: string,
+  ): Promise<{ others: number; mine: number | null }>;
   /** Verifies the Stripe-Signature header against the raw body. Throws if invalid. */
   constructEvent(rawBody: Buffer, signature: string): StripeEventLite;
 }
@@ -219,18 +223,19 @@ export function createStripeGateway(secretKey: string, webhookSecret: string): S
       }
     },
 
-    async refundedAmount(paymentIntentId, excludeRequestKey) {
+    async refundedAmount(paymentIntentId, requestKey) {
       try {
-        let total = 0;
+        let others = 0;
+        let mine: number | null = null;
         for await (const r of stripe.refunds.list({
           payment_intent: paymentIntentId,
           limit: 100,
         })) {
           if (r.status === 'failed' || r.status === 'canceled') continue;
-          if (excludeRequestKey && r.metadata?.request_key === excludeRequestKey) continue;
-          total += r.amount;
+          if (requestKey && r.metadata?.request_key === requestKey) mine = (mine ?? 0) + r.amount;
+          else others += r.amount;
         }
-        return total;
+        return { others, mine };
       } catch (e) {
         return wrap(e);
       }

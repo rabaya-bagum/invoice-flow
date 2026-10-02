@@ -87,6 +87,8 @@ const CODE_MESSAGES: Record<string, string> = {
   PAYMENT_IN_PROGRESS: 'A payment is in progress for this invoice. Try again in a moment.',
   NOT_REFUNDABLE: 'Only successful payments can be refunded.',
   AMOUNT_TOO_HIGH: 'That amount is higher than allowed.',
+  REFUND_ALREADY_ISSUED:
+    'Your earlier refund already went through. Check the refunded amount before refunding more.',
   SKU_EXISTS: 'Another product already uses that SKU.',
   AMOUNT_TOO_SMALL: 'That amount is below the minimum for card payments.',
   AMOUNT_UNSUPPORTED: 'That amount cannot be paid online. Try a different amount.',

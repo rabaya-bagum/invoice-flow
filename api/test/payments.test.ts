@@ -54,6 +54,22 @@ const hook = (c: Ctx, ev: { body: string; signature: string }) =>
     .set('Content-Type', 'application/json')
     .send(ev.body);
 
+/** True if a separate connection can lock the row right now (no transaction is holding it). */
+const unlockedRow = async (table: 'invoices' | 'payments', id: string) => {
+  const client = await ctx.db.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT 1 FROM ${table} WHERE id = $1 FOR UPDATE NOWAIT`, [id]);
+    return true;
+  } catch (e) {
+    if ((e as { code?: string }).code === '55P03') return false; // lock_not_available
+    throw e;
+  } finally {
+    await client.query('ROLLBACK');
+    client.release();
+  }
+};
+
 const dbPayments = async (invoiceId: string) =>
   (
     await ctx.db.query('SELECT * FROM payments WHERE invoice_id = $1 ORDER BY created_at', [
@@ -248,6 +264,71 @@ describe('creating a payment', () => {
     const retry = await a.intent(inv.id, 60_000);
     expect(retry.status).toBe(201);
     expect(retry.body.paymentId).not.toBe(first.body.paymentId);
+  });
+
+  it('never holds the invoice lock (or a transaction) while waiting on Stripe', async () => {
+    const a = await account();
+    const inv = await a.invoice();
+    let free: boolean | null = null;
+    ctx.stripe.state.duringCreateIntent = async () => {
+      free = await unlockedRow('invoices', inv.id);
+    };
+    try {
+      expect((await a.intent(inv.id)).status).toBe(201);
+    } finally {
+      ctx.stripe.state.duringCreateIntent = null;
+    }
+    expect(free).toBe(true);
+  });
+
+  it('does not hand out an intent if the invoice changed while Stripe was creating it', async () => {
+    const a = await account();
+    const inv = await a.invoice();
+    const cancelsBefore = ctx.stripe.state.counts.cancel;
+    ctx.stripe.state.duringCreateIntent = async () => {
+      await ctx.db.query("UPDATE invoices SET status = 'cancelled' WHERE id = $1", [inv.id]);
+    };
+    let res;
+    try {
+      res = await a.intent(inv.id);
+    } finally {
+      ctx.stripe.state.duringCreateIntent = null;
+    }
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('INVOICE_NOT_PAYABLE');
+    expect(res.body.clientSecret).toBeUndefined();
+    // Recorded (so the next attempt gets a fresh idempotency key) and cancelled at Stripe.
+    expect((await dbPayments(inv.id)).map((r) => [r.status, r.failure_code])).toEqual([
+      ['failed', 'superseded'],
+    ]);
+    expect(ctx.stripe.state.counts.cancel - cancelsBefore).toBe(1);
+  });
+
+  it('gives way to another attempt recorded while Stripe was creating this one', async () => {
+    const a = await account();
+    const inv = await a.invoice();
+    const row = (await ctx.db.query('SELECT business_id FROM invoices WHERE id = $1', [inv.id]))
+      .rows[0];
+    ctx.stripe.state.duringCreateIntent = async () => {
+      await ctx.db.query(
+        `INSERT INTO payments (business_id, invoice_id, amount_minor, currency, status, stripe_payment_intent_id, idempotency_key)
+         VALUES ($1, $2, 100000, 'USD', 'pending', $3, 'other-attempt')`,
+        [row.business_id, inv.id, `pi_other_${inv.id}`],
+      );
+    };
+    let res;
+    try {
+      res = await a.intent(inv.id);
+    } finally {
+      ctx.stripe.state.duringCreateIntent = null;
+    }
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('PAYMENT_IN_PROGRESS');
+    const rows = await dbPayments(inv.id);
+    expect(rows.map((r) => r.status).sort()).toEqual(['failed', 'pending']);
+    expect(rows.find((r) => r.status === 'pending')!.stripe_payment_intent_id).toBe(
+      `pi_other_${inv.id}`,
+    );
   });
 
   it('never starts a second attempt while a payment is processing or has succeeded at Stripe', async () => {
@@ -613,6 +694,28 @@ describe('successful payments', () => {
     expect((await a.get(inv.id)).amountPaidMinor).toBe(40_000);
   });
 
+  it('looks up the charge before locking anything', async () => {
+    const a = await account();
+    const inv = await a.invoice();
+    const created = await a.intent(inv.id);
+    const piId = [...ctx.stripe.state.intents.entries()].find(
+      ([, p]) => p.clientSecret === created.body.clientSecret,
+    )![0];
+    let free: boolean | null = null;
+    ctx.stripe.state.duringChargeLookup = async () => {
+      free =
+        (await unlockedRow('payments', created.body.paymentId)) &&
+        (await unlockedRow('invoices', inv.id));
+    };
+    try {
+      expect((await hook(ctx, ctx.stripe.succeededEvent(piId))).status).toBe(200);
+    } finally {
+      ctx.stripe.state.duringChargeLookup = null;
+    }
+    expect(free).toBe(true);
+    expect((await a.get(inv.id)).status).toBe('paid');
+  });
+
   it('rolls back and lets Stripe retry when processing fails midway', async () => {
     const a = await account();
     const { inv, piId } = await paid(a);
@@ -816,6 +919,26 @@ describe('refunds', () => {
     expect(retry.status).toBe(202);
     expect(retry.body.requested).toBe(100_000);
     expect(ctx.stripe.state.refunds.length - before).toBe(1);
+  });
+
+  it('refuses a changed amount under a key whose earlier refund already went through', async () => {
+    const a = await account();
+    const { paymentId } = await paidInvoice(a);
+    const before = ctx.stripe.state.refunds.length;
+    // The first response was lost (the client saw an error), then the amount was edited.
+    expect(
+      (await refundWithKey(a, paymentId, 'lost-key-0001', { amountMinor: 1_000 })).status,
+    ).toBe(202);
+    const changed = await refundWithKey(a, paymentId, 'lost-key-0001', { amountMinor: 2_000 });
+    expect(changed.status).toBe(409);
+    expect(changed.body.error.code).toBe('REFUND_ALREADY_ISSUED');
+    const full = await refundWithKey(a, paymentId, 'lost-key-0001');
+    expect(full.status).toBe(409);
+    expect(ctx.stripe.state.refunds.length - before).toBe(1);
+    // A new key is a new refund, and the earlier one counts toward what remains.
+    const next = await refundWithKey(a, paymentId, 'next-key-0001');
+    expect(next.status).toBe(202);
+    expect(next.body.requested).toBe(99_000);
   });
 
   it('issues two deliberate refunds of the same amount before the first webhook lands', async () => {

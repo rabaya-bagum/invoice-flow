@@ -46,6 +46,7 @@ import { createMeRouter } from './routes/me';
 import type { AccountService } from './services/account-service';
 import type { BusinessService, CustomerService, ProductService } from './services/catalog-services';
 import type { TokenVerifier } from './services/token-verifier';
+import { redactRequest } from './utils/log-redaction';
 
 export interface AppDeps {
   verifyToken: TokenVerifier;
@@ -79,7 +80,13 @@ export function createApp(config: Config, deps: AppDeps) {
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
-  app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
+  app.use(
+    pinoHttp({
+      logger,
+      autoLogging: { ignore: (req) => req.url === '/health' },
+      serializers: { req: redactRequest },
+    }),
+  );
   app.use(helmet());
   app.use(cors({ origin: config.CORS_ORIGINS, credentials: false }));
 

@@ -549,6 +549,34 @@ describe('tax rates', () => {
     expect((await b.call('get', '/v1/tax-rates')).body.items).toEqual([]);
   });
 
+  it('a default update for a missing rate (404) leaves the current default alone', async () => {
+    const a = await account();
+    const b = await account();
+    const gst = await a
+      .call('post', '/v1/tax-rates')
+      .send({ name: 'GST', rateBps: 500, isDefault: true });
+    const gone = await a.call('post', '/v1/tax-rates').send({ name: 'Old', rateBps: 100 });
+    await a.call('delete', `/v1/tax-rates/${gone.body.id}`);
+    const defaults = async () =>
+      (await a.call('get', '/v1/tax-rates')).body.items
+        .filter((r: { isDefault: boolean }) => r.isDefault)
+        .map((r: { id: string }) => r.id);
+
+    const missing = await a
+      .call('put', `/v1/tax-rates/${gone.body.id}`)
+      .send({ name: 'Old', rateBps: 100, isDefault: true });
+    expect(missing.status).toBe(404);
+    expect(await defaults()).toEqual([gst.body.id]);
+
+    // Another business's rate is "missing" too, and must not touch this business's default.
+    const theirs = await b.call('post', '/v1/tax-rates').send({ name: 'VAT', rateBps: 2_000 });
+    const foreign = await a
+      .call('put', `/v1/tax-rates/${theirs.body.id}`)
+      .send({ name: 'VAT', rateBps: 2_000, isDefault: true });
+    expect(foreign.status).toBe(404);
+    expect(await defaults()).toEqual([gst.body.id]);
+  });
+
   it('deleting a rate does not change existing invoices', async () => {
     const a = await account();
     const r = await a.call('post', '/v1/tax-rates').send({ name: 'GST', rateBps: 500 });

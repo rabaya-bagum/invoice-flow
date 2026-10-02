@@ -5,6 +5,7 @@ import {
   EmailError,
   escapeHtml,
 } from '../src/services/email';
+import { redactRequest, redactTokenUrl } from '../src/utils/log-redaction';
 import { makeToken, newSalt, parseToken, verifyToken } from '../src/utils/public-token';
 import { TINY_PNG } from './helpers';
 
@@ -128,5 +129,29 @@ describe('database pool', () => {
     expect(o.idle_in_transaction_session_timeout).toBe(30_000);
     expect(o.connectionTimeoutMillis).toBe(5_000);
     await pool.end();
+  });
+});
+
+describe('request log redaction', () => {
+  it.each([
+    ['/pay/abc.def', '/pay/[redacted]'],
+    ['/public/invoices/abc.def', '/public/invoices/[redacted]'],
+    ['/public/invoices/abc.def/pdf?download=1', '/public/invoices/[redacted]/pdf?download=1'],
+    ['/public/invoices/abc.def/view', '/public/invoices/[redacted]/view'],
+    ['/estimate/abc.def', '/estimate/[redacted]'],
+    ['/public/estimates/abc.def/pdf', '/public/estimates/[redacted]/pdf'],
+  ])('masks the share token in %s', (url, expected) => {
+    expect(redactTokenUrl(url)).toBe(expected);
+  });
+
+  it('leaves other routes alone', () => {
+    for (const url of ['/v1/invoices/123', '/health', '/stripe/connect/return', '/payments/x'])
+      expect(redactTokenUrl(url)).toBe(url);
+  });
+
+  it('masks url and params.token on the logged request', () => {
+    const out = redactRequest({ url: '/pay/abc.def', params: { token: 'abc.def' }, method: 'GET' });
+    expect(out).toEqual({ url: '/pay/[redacted]', params: { token: '[redacted]' }, method: 'GET' });
+    expect(JSON.stringify(out)).not.toContain('abc.def');
   });
 });

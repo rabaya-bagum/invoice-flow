@@ -28,7 +28,8 @@ export function PaymentDetailScreen({
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState<string | null>(null);
   // One key per refund attempt: kept across retries after an error (the refund may have gone
-  // through), replaced only once a refund succeeds.
+  // through), even if the amount is changed, so the API can spot a lost earlier refund and refuse
+  // to add a second one. Replaced once a refund succeeds or the API reports that earlier refund.
   const refundKey = useRef<string | null>(null);
 
   if (q.isPending) return <LoadingState />;
@@ -72,7 +73,15 @@ export function PaymentDetailScreen({
           onPress: () =>
             void submit.run(async () => {
               refundKey.current ??= newRequestKey();
-              await refund.mutateAsync({ amountMinor: minor, requestKey: refundKey.current });
+              try {
+                await refund.mutateAsync({ amountMinor: minor, requestKey: refundKey.current });
+              } catch (e) {
+                if ((e as { code?: string }).code === 'REFUND_ALREADY_ISSUED') {
+                  refundKey.current = null;
+                  void q.refetch();
+                }
+                throw e;
+              }
               refundKey.current = null;
               setRequested(label);
               setAmount('');

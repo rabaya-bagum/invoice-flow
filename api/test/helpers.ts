@@ -331,6 +331,9 @@ export function fakeStripe() {
     failIntentCreate: null as string | null,
     /** Make cancelPaymentIntent throw (network error, or Stripe refusing because money moved). */
     failCancel: false,
+    /** Runs while a Stripe call is "in flight" (lets tests inspect locks or change state mid-call). */
+    duringCreateIntent: null as (() => Promise<void>) | null,
+    duringChargeLookup: null as ((chargeId: string) => Promise<void>) | null,
   };
   const gateway: StripeGateway = {
     async createExpressAccount() {
@@ -362,6 +365,7 @@ export function fakeStripe() {
         throw new GatewayError(state.failIntentCreate, 'stripe says no');
       }
       state.counts.createPaymentIntent++;
+      await state.duringCreateIntent?.();
       const id = `pi_${uniq()}`;
       const pi: FakeIntent = {
         id,
@@ -387,6 +391,7 @@ export function fakeStripe() {
       if (pi) pi.status = 'canceled';
     },
     async retrieveCharge(id) {
+      await state.duringChargeLookup?.(id);
       if (state.failChargeLookup > 0) {
         state.failChargeLookup--;
         throw new Error('stripe unavailable');
@@ -401,11 +406,14 @@ export function fakeStripe() {
       refundsByKey.set(key, r);
       return r;
     },
-    async refundedAmount(paymentIntentId, excludeRequestKey) {
-      return state.refunds
-        .filter((r) => r.paymentIntentId === paymentIntentId)
-        .filter((r) => !excludeRequestKey || r.requestKey !== excludeRequestKey)
-        .reduce((sum, r) => sum + r.amount, 0);
+    async refundedAmount(paymentIntentId, requestKey) {
+      let others = 0;
+      let mine: number | null = null;
+      for (const r of state.refunds.filter((r) => r.paymentIntentId === paymentIntentId)) {
+        if (requestKey && r.requestKey === requestKey) mine = (mine ?? 0) + r.amount;
+        else others += r.amount;
+      }
+      return { others, mine };
     },
     constructEvent: (raw, sig) =>
       real.webhooks.constructEvent(raw, sig, WEBHOOK_SECRET) as unknown as ReturnType<

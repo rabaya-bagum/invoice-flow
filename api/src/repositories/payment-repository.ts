@@ -55,6 +55,8 @@ export interface PaymentRepository {
     intentId: string;
     idempotencyKey: string;
     applicationFeeMinor: number;
+    /** Record the attempt as already failed with this code (an intent created but never handed out). */
+    failureCode?: string;
   }): Promise<string>;
   markFailed(id: string, code: string): Promise<void>;
   markSuccessful(
@@ -148,8 +150,9 @@ export function createPaymentRepository(db: Queryable): PaymentRepository {
     async insertPending(p) {
       const r = await db.query<{ id: string }>(
         `INSERT INTO payments (business_id, invoice_id, amount_minor, currency, status, stripe_payment_intent_id,
-           idempotency_key, application_fee_minor)
-         VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7) RETURNING id`,
+           idempotency_key, application_fee_minor, failure_code)
+         VALUES ($1, $2, $3, $4, (CASE WHEN $8::text IS NULL THEN 'pending' ELSE 'failed' END)::payment_status, $5, $6, $7, $8)
+         RETURNING id`,
         [
           p.businessId,
           p.invoiceId,
@@ -158,6 +161,7 @@ export function createPaymentRepository(db: Queryable): PaymentRepository {
           p.intentId,
           p.idempotencyKey,
           p.applicationFeeMinor,
+          p.failureCode ?? null,
         ],
       );
       return (r.rows[0] as { id: string }).id;

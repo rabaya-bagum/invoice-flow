@@ -40,6 +40,12 @@ export function createTaxRateRepository(db: Database): TaxRateRepository {
 
     update: (businessId, id, input) =>
       db.transaction(async (tx) => {
+        // Check (and lock) the target first: a missing id must not clear the current default.
+        const target = await tx.query(
+          'SELECT 1 FROM tax_rates WHERE id = $1 AND business_id = $2 FOR UPDATE',
+          [id, businessId],
+        );
+        if ((target.rowCount ?? 0) === 0) return null;
         if (input.isDefault) {
           await tx.query(
             'UPDATE tax_rates SET is_default = false WHERE business_id = $1 AND id <> $2',

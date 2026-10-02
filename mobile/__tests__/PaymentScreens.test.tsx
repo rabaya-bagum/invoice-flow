@@ -221,6 +221,32 @@ describe('PaymentDetailScreen', () => {
     expect(keyOf(1)).toBe(keyOf(0));
     expect(keyOf(2)).not.toBe(keyOf(0));
   });
+
+  it('keeps the key when the amount changes after a failure, and drops it once the API reports the earlier refund', async () => {
+    confirmAlerts();
+    let reply: 'timeout' | 'already' | 'ok' = 'timeout';
+    const refundPayment = jest.fn(async () => {
+      if (reply === 'timeout') throw new ApiError('server', 502, 'PAYMENT_PROVIDER_ERROR');
+      if (reply === 'already') throw new ApiError('unknown', 409, 'REFUND_ALREADY_ISSUED');
+      return { requested: 2000 };
+    });
+    await open(payment(), { refundPayment });
+    const press = () => fireEvent.press(screen.getByRole('button', { name: 'Refund' }));
+    const keyOf = (n: number) => (refundPayment.mock.calls[n] as unknown[])[2];
+
+    await fireEvent.changeText(screen.getByLabelText(/Amount \(USD\)/), '10');
+    await press();
+    await screen.findByText(/payment provider could not be reached/);
+    reply = 'already';
+    await fireEvent.changeText(screen.getByLabelText(/Amount \(USD\)/), '20');
+    await press(); // same key, so the API can tell the first refund already went through
+    expect(await screen.findByText(/earlier refund already went through/)).toBeTruthy();
+    reply = 'ok';
+    await press();
+    await waitFor(() => expect(refundPayment).toHaveBeenCalledTimes(3));
+    expect(keyOf(1)).toBe(keyOf(0));
+    expect(keyOf(2)).not.toBe(keyOf(0));
+  });
 });
 
 describe('OnlinePaymentsScreen', () => {
