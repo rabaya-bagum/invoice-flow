@@ -80,9 +80,6 @@ export function createApiClient(opts: ApiClientOptions) {
         if (fresh) res = await send(path, init, fresh);
       }
     } catch (err) {
-      if (__DEV__ && process.env.NODE_ENV !== 'test') {
-        console.warn(`[api] ${init.method ?? 'GET'} ${path} threw before a response:`, err);
-      }
       throw new ApiError(classifyError(err) === 'network' ? 'network' : 'unknown');
     }
     if (res.status === 401) {
@@ -91,15 +88,10 @@ export function createApiClient(opts: ApiClientOptions) {
     }
     if (!res.ok) {
       let code: string | undefined;
-      let errorBody: unknown;
       try {
-        errorBody = await res.json();
-        code = (errorBody as { error?: { code?: string } } | null)?.error?.code;
+        code = (await res.json())?.error?.code;
       } catch {
         /* non-JSON error body: ignore */
-      }
-      if (__DEV__ && process.env.NODE_ENV !== 'test') {
-        console.warn(`[api] ${init.method ?? 'GET'} ${path} -> ${res.status}`, errorBody);
       }
       throw new ApiError(res.status >= 500 ? 'server' : 'unknown', res.status, code);
     }
