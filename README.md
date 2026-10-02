@@ -175,7 +175,9 @@ Phase 10 (launch readiness) adds EAS build profiles, an OpenAPI spec and Postman
 launch checklist, store listing draft and privacy policy template under `docs/`.
 Phase 11 adds estimates (create, email, convert to a draft invoice). Phase 12 adds a customer-facing
 estimate page where the customer reads, accepts or declines, with owner notifications. Not built yet
-(v1.1): offline drafts with sync.
+(v1.1): estimates offline.
+Phase 14 adds offline invoice drafts with sync: write, edit and delete drafts with no connection; they upload
+when you are back, with explicit conflict choices (see `docs/ASSUMPTIONS.md`).
 Phase 13 adds invoice appearance (layout, accent colour, what to show) with a live preview.
 Nothing has been run against real Apple/Google/Stripe/Resend/Expo accounts; start with
 `docs/LAUNCH_CHECKLIST.md`.

@@ -160,7 +160,7 @@ export function createApiClient(opts: ApiClientOptions) {
     listInvoices: (p: InvoiceListParams) =>
       request<Page<InvoiceSummary>>(`/v1/invoices${qs({ ...p })}`),
     getInvoice: (id: string) => request<Invoice>(`/v1/invoices/${id}`),
-    createInvoice: (input: InvoiceWriteInput) =>
+    createInvoice: (input: InvoiceWriteInput & { id?: string }) =>
       request<Invoice>('/v1/invoices', body('POST', input)),
     updateInvoice: (id: string, input: InvoiceWriteInput) =>
       request<Invoice>(`/v1/invoices/${id}`, body('PUT', input)),

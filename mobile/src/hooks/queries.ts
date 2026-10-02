@@ -12,7 +12,10 @@ import type {
   TaxRateInput,
 } from '@invoiceflow/shared';
 import type { BusinessUpdate, CustomerInput, DashboardPeriod, ProductInput } from '../models';
+import { useOffline } from '../offline/context';
+import { filterCustomers, filterProducts } from '../offline/reference';
 import { useAuth } from '../store/auth';
+import { classifyError } from '../utils/errors';
 
 export const PAGE_SIZE = 25;
 
@@ -45,9 +48,34 @@ export function newQueryClient() {
   });
 }
 
+/**
+ * Runs `live`; if there is no connection and a saved copy exists, answers from the copy instead (so a
+ * draft can be written offline). Any other error is still an error.
+ */
+async function orSavedCopy<T>(
+  live: () => Promise<T>,
+  saved: () => Promise<T | undefined>,
+): Promise<T> {
+  try {
+    return await live();
+  } catch (e) {
+    const copy = classifyError(e) === 'network' ? await saved() : undefined;
+    if (copy !== undefined) return copy;
+    throw e;
+  }
+}
+
 export function useBusiness() {
   const { api } = useAuth();
-  return useQuery({ queryKey: keys.business, queryFn: api.getBusiness });
+  const offline = useOffline();
+  return useQuery({
+    queryKey: keys.business,
+    queryFn: () =>
+      orSavedCopy(
+        () => api.getBusiness(),
+        async () => (await offline.getSnapshot())?.business,
+      ),
+  });
 }
 
 export function useUpdateBusiness() {
@@ -61,10 +89,20 @@ export function useUpdateBusiness() {
 
 export function useCustomers(search: string) {
   const { api } = useAuth();
+  const offline = useOffline();
   return useInfiniteQuery({
     queryKey: [...keys.customers, 'list', search],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.listCustomers({ search, limit: PAGE_SIZE, offset: pageParam }),
+    queryFn: ({ pageParam }) =>
+      orSavedCopy(
+        () => api.listCustomers({ search, limit: PAGE_SIZE, offset: pageParam }),
+        async () => {
+          const all = (await offline.getSnapshot())?.customers;
+          if (!all) return undefined;
+          const items = filterCustomers(all, search);
+          return { items: items.slice(pageParam, pageParam + PAGE_SIZE), total: items.length };
+        },
+      ),
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0);
       return loaded < last.total ? loaded : undefined;
@@ -102,11 +140,21 @@ export function useDeleteCustomer() {
 
 export function useProducts(search: string) {
   const { api } = useAuth();
+  const offline = useOffline();
   return useInfiniteQuery({
     queryKey: [...keys.products, 'list', search],
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
-      api.listProducts({ search, limit: PAGE_SIZE, offset: pageParam, includeInactive: true }),
+      orSavedCopy(
+        () =>
+          api.listProducts({ search, limit: PAGE_SIZE, offset: pageParam, includeInactive: true }),
+        async () => {
+          const all = (await offline.getSnapshot())?.products;
+          if (!all) return undefined;
+          const items = filterProducts(all, search);
+          return { items: items.slice(pageParam, pageParam + PAGE_SIZE), total: items.length };
+        },
+      ),
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0);
       return loaded < last.total ? loaded : undefined;
@@ -193,7 +241,7 @@ export function useSaveInvoice(id?: string) {
   const { api } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: InvoiceWriteInput) =>
+    mutationFn: (input: InvoiceWriteInput & { id?: string }) =>
       id ? api.updateInvoice(id, input) : api.createInvoice(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.invoices }),
   });
@@ -219,9 +267,14 @@ export function useTransitionInvoice() {
 
 export function useTaxRates() {
   const { api } = useAuth();
+  const offline = useOffline();
   return useQuery({
     queryKey: keys.taxRates,
-    queryFn: async () => (await api.listTaxRates()).items,
+    queryFn: () =>
+      orSavedCopy(
+        async () => (await api.listTaxRates()).items,
+        async () => (await offline.getSnapshot())?.taxRates,
+      ),
   });
 }
 

@@ -1,12 +1,14 @@
 import { formatPercent, isSupportedCurrency, minorToDecimalString } from '@invoiceflow/shared';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
 import { useBusiness, useSaveEstimate, useSaveInvoice, useTaxRates } from '../hooks/queries';
 import type { Product } from '../models';
+import { useOffline } from '../offline/context';
+import { newInvoiceId } from '../offline/ids';
 import { ApiError } from '../services/api';
 import { spacing } from '../theme';
 import { useTheme } from '../theme/useTheme';
-import { friendlyMessage } from '../utils/errors';
+import { classifyError, friendlyMessage } from '../utils/errors';
 import {
   buildInvoicePayload,
   emptyLine,
@@ -26,18 +28,33 @@ import { TotalsCard } from './TotalsCard';
 interface Props {
   initial: InvoiceForm;
   invoiceId?: string;
-  onSaved: (saved: { id: string }) => void;
+  onSaved: (saved: { id: string; queued?: boolean }) => void;
+  /**
+   * Drafts can be saved with no connection. `isNew`: not on the server yet. `baseVersion`: the server
+   * version this edit started from. `local`: the draft already lives in the offline queue, so saving
+   * goes through the queue (and uploads straight away when online).
+   */
+  offline?: { isNew: boolean; baseVersion: number | null; local?: boolean };
   /** Estimates share this form: "Valid until" replaces the due date and a different endpoint is used. */
   kind?: 'invoice' | 'estimate';
 }
 
-export function InvoiceFormView({ initial, invoiceId, onSaved, kind = 'invoice' }: Props) {
+export function InvoiceFormView({
+  initial,
+  invoiceId,
+  onSaved,
+  kind = 'invoice',
+  offline: offlineMode,
+}: Props) {
   const estimate = kind === 'estimate';
   const c = useTheme();
   const business = useBusiness();
   const taxRates = useTaxRates();
   const saveInvoice = useSaveInvoice(invoiceId);
   const saveEstimate = useSaveEstimate(invoiceId);
+  const off = useOffline();
+  // A new invoice gets its id up front, so a retry after a dropped connection can never create two.
+  const newId = useRef(invoiceId ?? newInvoiceId());
   const [form, setForm] = useState<InvoiceForm>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -98,7 +115,37 @@ export function InvoiceFormView({ initial, invoiceId, onSaved, kind = 'invoice' 
         const { dueDate, ...rest } = payload;
         onSaved(await saveEstimate.mutateAsync({ ...rest, expiryDate: dueDate }));
       } else {
-        onSaved(await saveInvoice.mutateAsync(payload));
+        const id = newId.current;
+        const content = { ...payload, version: undefined };
+        const queueIt = async () => {
+          await off.saveDraft({
+            invoiceId: id,
+            isNew: offlineMode?.isNew ?? !invoiceId,
+            payload: content,
+            baseVersion: offlineMode?.baseVersion ?? payload.version ?? null,
+            summary: {
+              customerName: form.customerName,
+              currency: cur,
+              totalMinor: preview && 'totals' in preview ? preview.totals.total : 0,
+              number: payload.number,
+            },
+          });
+          onSaved({ id, queued: true });
+        };
+        if (off.available && offlineMode?.local) {
+          // Already queued: keep the queue as the source of truth and try to upload right away.
+          await queueIt();
+          void off.syncNow();
+        } else {
+          try {
+            onSaved(await saveInvoice.mutateAsync(invoiceId ? payload : { ...payload, id }));
+          } catch (err) {
+            // No connection (or a timeout that may have reached the server): keep the draft safe on
+            // the device. The id makes the later upload idempotent.
+            if (off.available && offlineMode && classifyError(err) === 'network') await queueIt();
+            else throw err;
+          }
+        }
       }
     } catch (err) {
       const code = err instanceof ApiError ? err.code : undefined;

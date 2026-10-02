@@ -22,6 +22,15 @@ Get an independent pentest before handling real customers' money.
 | Transport and browser | `helmet` headers, no `X-Powered-By`, CORS closed by default (`CORS_ORIGINS` allow-list). | `security.test.ts` |
 | Mobile secrets | Session tokens live in the OS keychain/keystore (`expo-secure-store`); optional biometric lock; push tokens are removed on sign-out. Only `EXPO_PUBLIC_*` values (Supabase URL and anon key, API URL) are in the bundle. | `secure-storage.test.ts`, `auth-store.test.tsx` |
 
+## Offline drafts (Phase 14)
+
+- Client-generated invoice ids are never reused (`ID_TAKEN`), whoever owns the existing one, and a
+  concurrent duplicate is resolved by the primary key (tested: one 201, the rest 409).
+- Unsynced drafts and the saved customer/product lists are stored **unencrypted** in the app sandbox, one
+  file per user, and deleted on sign-out. Anyone with the unlocked phone or a rooted/jailbroken device can
+  read them. If that is not acceptable, encrypt the files with a key held in the secure store.
+- A queued change is applied with the user's *current* session, never replayed with stale credentials.
+
 ## Findings and fixes in this phase
 
 1. **Fixed:** `GET /v1/customers/:id/invoices` answered `200` with an empty list for another

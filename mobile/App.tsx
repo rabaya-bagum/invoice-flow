@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { newQueryClient } from './src/hooks/queries';
+import { OfflineProvider } from './src/offline/OfflineProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { getServices, type Services } from './src/services';
 import { AuthProvider } from './src/store/auth';
@@ -35,7 +36,9 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider services={services}>
         <QueryClientProvider client={queryClient}>
-          <RootNavigator />
+          <OfflineProvider>
+            <RootNavigator />
+          </OfflineProvider>
         </QueryClientProvider>
       </AuthProvider>
       <StatusBar style="auto" />

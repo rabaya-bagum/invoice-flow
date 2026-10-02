@@ -281,6 +281,54 @@
 - Not covered: custom fonts, invoice title wording ("Tax invoice"), colours per document, a logo-size
   setting, multiple saved themes.
 
+## Offline drafts and sync (Phase 14)
+**Scope.** You can create invoice drafts, edit existing *drafts*, and delete drafts with no connection.
+Everything else (sending, payments, customers, products, estimates, viewing other invoices) still needs
+the network. Estimates are not queued yet.
+
+**How it works.**
+- The app tries the server first. Only a *connection* failure (no network, timeout) queues the change;
+  validation errors, conflicts and 5xx are shown as before. Nothing changes for an online user.
+- A new invoice gets its id **on the phone** (`POST /v1/invoices` accepts an optional `id`). The server
+  never reuses an id (`409 ID_TAKEN`, same answer for "yours" and "someone else's"), so a retry can never
+  create two invoices, even when the first request reached the server and only the reply was lost.
+- The queue holds **one op per invoice** (edits coalesce; the *first* base version is kept, so a
+  conflict is judged against what the user originally saw). It is a JSON file in the app's private
+  documents folder, **one file per user**.
+- Uploads run oldest first when the app comes to the front, every 30 s while something is waiting, and on
+  "Sync now". A connection or server problem stops the run (the rest would fail the same way); a problem
+  with one draft does not block the others. There is no connectivity library: "offline" means "the request
+  failed", which is also what a captive portal or dead Wi-Fi looks like.
+- The form works offline from a **saved copy** of business settings, tax rates, and the first 100
+  customers and 100 active products (refreshed at most every 10 minutes). A bigger catalogue is only
+  partly available offline.
+
+**Conflict policy (no silent overwrites).**
+- Server version moved on, content differs -> *conflict*: "Keep my version" (re-base on the server's
+  current version and upload) or "Use server version" (discard mine). Never decided automatically.
+- Server already has exactly my content (the save worked, the reply was lost) -> counted as done, not a
+  conflict (compared field by field).
+- Draft was sent/paid elsewhere, or deleted -> *conflict*: only "Save as new draft" (fresh id, automatic
+  number) or discard. A sent invoice is never edited by an old offline copy.
+- Server refuses the content (number taken, customer/product deleted) -> *failed* with a plain reason; the
+  user edits and saves again, or discards.
+- Editing an **already sent** invoice is never queued: payments may have happened, so it needs the network.
+- Numbers: offline drafts leave the number blank, so the server assigns the next one at upload (invoice
+  numbers may therefore not follow the order drafts were written in). A typed number that is taken becomes
+  a *failed* draft.
+- Deleting a never-uploaded draft still sends a delete (404 counts as done), because its create may have
+  reached the server.
+- If the user edits a draft *while* its previous version is uploading, the newer edit is kept and follows
+  the upload without a version check against its own upload.
+
+**Privacy and limits.**
+- Drafts and the saved lists sit **unencrypted** in the app sandbox (customer names, emails, prices).
+  They are removed on sign-out, session end, and account deletion, and signing out with unsynced drafts
+  asks first. Device-level encryption and the optional biometric lock are the protection beyond that.
+- Edits queued on two devices for the same draft are resolved by the conflict flow above, not merged.
+- Not covered: offline estimates, offline customers/products, background upload while the app is closed
+  (the app must be opened), per-field merges.
+
 ## Money
 - Integer minor units everywhere (`bigint` in Postgres, safe integers in JS). Intermediate maths is `bigint`.
 - Rounding: half-up. Quantities are stored with 3 decimals (`numeric(12,3)`, `quantityMilli` in code).

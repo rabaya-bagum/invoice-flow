@@ -8,6 +8,7 @@ import { EstimateListScreen } from '../screens/EstimateListScreen';
 import { EstimateScreen } from '../screens/EstimateScreen';
 import { InvoiceListScreen } from '../screens/InvoiceListScreen';
 import { SendEstimateScreen } from '../screens/SendEstimateScreen';
+import { SyncStatusScreen } from '../screens/SyncStatusScreen';
 import { InvoiceScreen } from '../screens/InvoiceScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { OnlinePaymentsScreen } from '../screens/OnlinePaymentsScreen';
@@ -71,6 +72,11 @@ function InvoicesStack() {
         name="SendInvoice"
         component={SendInvoiceScreen}
         options={{ title: 'Send invoice' }}
+      />
+      <Invoices.Screen
+        name="SyncStatus"
+        component={SyncStatusScreen}
+        options={{ title: 'Sync status' }}
       />
       <Invoices.Screen
         name="EstimateList"

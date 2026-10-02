@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { ChipRow } from '../components/ChipRow';
 import { ErrorState, LoadingState } from '../components/ListStates';
 import { QuickCreateFab } from '../components/QuickCreateFab';
+import { SyncBanner } from '../components/SyncBanner';
 import { StatCard } from '../components/StatCard';
 import { useDashboard, useNotifications } from '../hooks/queries';
 import type { CurrencyTotals, DashboardPeriod, Payment } from '../models';
@@ -70,6 +71,8 @@ export function HomeScreen() {
               onPress={() => navigation.navigate('MoreTab', { screen: 'Notifications' })}
             />
           </View>
+
+          <SyncBanner onOpen={() => navigation.navigate('InvoicesTab', { screen: 'SyncStatus' })} />
 
           {isEmpty ? (
             <View style={[styles.welcome, { backgroundColor: c.surface }]}>

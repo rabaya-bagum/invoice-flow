@@ -10,6 +10,7 @@ import {
   setPushPreference,
   unregisterPush,
 } from '../services/push';
+import { useOffline } from '../offline/context';
 import { useAuth } from '../store/auth';
 import { useTheme } from '../theme/useTheme';
 
@@ -19,6 +20,7 @@ export function SettingsScreen() {
   const [available, setAvailable] = useState(false);
   const [bioError, setBioError] = useState<string | null>(null);
   const del = useSubmit();
+  const off = useOffline();
   const [pushOn, setPushOn] = useState(true);
   const [pushNote, setPushNote] = useState<string | null>(null);
   const [pushDenied, setPushDenied] = useState(false);
@@ -115,7 +117,26 @@ export function SettingsScreen() {
           onPress={() => void Linking.openSettings()}
         />
       ) : null}
-      <Button title="Sign out" variant="secondary" onPress={() => void auth.signOut()} />
+      <Button
+        title="Sign out"
+        variant="secondary"
+        onPress={() => {
+          if (off.available && off.ops.length > 0) {
+            Alert.alert(
+              'Sign out and lose unsynced drafts?',
+              `${off.ops.length} draft change${off.ops.length === 1 ? ' is' : 's are'} saved only on this device. Signing out deletes ${off.ops.length === 1 ? 'it' : 'them'}. Connect to the internet and sync first to keep ${off.ops.length === 1 ? 'it' : 'them'}.`,
+              [
+                { text: 'Stay signed in', style: 'cancel' },
+                {
+                  text: 'Sign out anyway',
+                  style: 'destructive',
+                  onPress: () => void auth.signOut(),
+                },
+              ],
+            );
+          } else void auth.signOut();
+        }}
+      />
       {del.error ? <Message kind="error">{del.error}</Message> : null}
       <Button
         title="Delete account"
